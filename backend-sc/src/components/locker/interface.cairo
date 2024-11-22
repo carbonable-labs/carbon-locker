@@ -18,4 +18,16 @@ trait ILockerHandler<TContractState> {
 
     /// Allows the user to withdraw credits before the lock period ends with a penalty.
     fn early_withdraw(ref self: TContractState, token_id: u256);
+
+    /// Retrieves the contract address of offsetter
+    fn get_offsetter_address(self: @TContractState) -> ContractAddress;
+
+    /// Sets the contract address of offsetter
+    fn set_offsetter_address(ref self: TContractState, address: ContractAddress);
+
+    /// Retrieves the contract address of the NFT component
+    fn get_nft_component_address(self: @TContractState) -> ContractAddress;
+
+    /// Sets the contract address of the NFT component
+    fn set_nft_component_address(ref self: TContractState, address: ContractAddress);
 }

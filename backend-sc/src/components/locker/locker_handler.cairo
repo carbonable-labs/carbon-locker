@@ -44,7 +44,20 @@ mod LockerComponent {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {}
+    enum Event {
+        OffsetterSet: OffsetterSet,
+        NFTComponentSet: NFTComponentSet
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct OffsetterSet {
+        offsetter: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct NFTComponentSet {
+        nft_component: ContractAddress,
+    }
 
     mod Errors {
         const MISSING_ROLE: felt252 = 'Locker: Missing role';
@@ -84,6 +97,32 @@ mod LockerComponent {
 
         /// Allows the user to withdraw credits before the lock period ends with a penalty.
         fn early_withdraw(ref self: ComponentState<TContractState>, token_id: u256) {}
+
+        /// Retrieves the contract address of offsetter
+        fn get_offsetter_address(self: @ComponentState<TContractState>) -> ContractAddress {
+            self.offsetter.read()
+        }
+
+        /// Sets the contract address of offsetter
+        fn set_offsetter_address(
+            ref self: ComponentState<TContractState>, address: ContractAddress
+        ) {
+            self.offsetter.write(address);
+            self.emit(OffsetterSet { offsetter: address });
+        }
+
+        /// Retrieves the contract address of the NFT component
+        fn get_nft_component_address(self: @ComponentState<TContractState>) -> ContractAddress {
+            self.nft_component.read()
+        }
+
+        /// Sets the contract address of the NFT component
+        fn set_nft_component_address(
+            ref self: ComponentState<TContractState>, address: ContractAddress
+        ) {
+            self.nft_component.write(address);
+            self.emit(NFTComponentSet { nft_component: address });
+        }
     }
 
     #[generate_trait]
