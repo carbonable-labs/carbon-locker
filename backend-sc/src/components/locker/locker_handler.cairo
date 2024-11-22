@@ -100,6 +100,7 @@ mod LockerComponent {
 
         /// Retrieves the contract address of offsetter
         fn get_offsetter_address(self: @ComponentState<TContractState>) -> ContractAddress {
+            self.assert_only_role(OWNER_ROLE);
             self.offsetter.read()
         }
 
@@ -107,12 +108,14 @@ mod LockerComponent {
         fn set_offsetter_address(
             ref self: ComponentState<TContractState>, address: ContractAddress
         ) {
+            self.assert_only_role(OWNER_ROLE);
             self.offsetter.write(address);
             self.emit(OffsetterSet { offsetter: address });
         }
 
         /// Retrieves the contract address of the NFT component
         fn get_nft_component_address(self: @ComponentState<TContractState>) -> ContractAddress {
+            self.assert_only_role(OWNER_ROLE);
             self.nft_component.read()
         }
 
@@ -120,6 +123,7 @@ mod LockerComponent {
         fn set_nft_component_address(
             ref self: ComponentState<TContractState>, address: ContractAddress
         ) {
+            self.assert_only_role(OWNER_ROLE);
             self.nft_component.write(address);
             self.emit(NFTComponentSet { nft_component: address });
         }
