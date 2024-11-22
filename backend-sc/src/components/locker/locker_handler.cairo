@@ -44,19 +44,19 @@ mod LockerComponent {
 
     #[event]
     #[derive(Drop, starknet::Event)]
-    enum Event {
+    pub enum Event {
         OffsetterSet: OffsetterSet,
         NFTComponentSet: NFTComponentSet
     }
 
     #[derive(Drop, starknet::Event)]
-    struct OffsetterSet {
-        offsetter: ContractAddress,
+    pub struct OffsetterSet {
+        pub offsetter: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
-    struct NFTComponentSet {
-        nft_component: ContractAddress,
+    pub struct NFTComponentSet {
+        pub nft_component: ContractAddress,
     }
 
     mod Errors {
