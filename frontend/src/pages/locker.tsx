@@ -25,8 +25,8 @@ const LockerPage = () => {
 
 
   return (
-    <div className="p-4 bg-[rgb(11,13,19)]">
-      <h1 className="text-white opacity-50">Lock Your Carbon Credits</h1>
+    <div className="p-4 bg-neutral-800">
+      <h1 className="text-neutral-100">Lock Your Carbon Credits</h1>
       <LockForm onSubmit={handleLockSubmit} />
     </div>
   );

@@ -58,19 +58,20 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
   return (
     <div className="min-h-screen p-4 Locker flex justify-center items-center">
       <div className="w-full max-w-md mx-auto">
-      <div className="bg-[rgba(54,54,54,0.07)] backdrop-blur-md rounded-2xl shadow-2xl p-8 mb-4 border border-gray-600/20">
+        <div className="bg-opacityLight-5 backdrop-blur-md rounded-2xl shadow-2xl p-8 mb-4 border border-opacityLight-10">
           <header className="text-center mb-6">
             <div className="inline-flex items-center gap-3">
-              <Lock className="text-[rgb(10,242,173)]" size={32} />
-              <h2 className="text-2xl font-bold text-gray-800">Token Locker</h2>
+              <Lock className="text-greenish-500" size={32} />
+              <h2 className="text-2xl font-bold text-neutral-100">Token Locker</h2>
             </div>
           </header>
 
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <InputField
-              icon={<Coins className="text-[rgb(10,242,173)]" size={20} />}
+              icon={<Coins className="text-greenish-500" size={20} />}
               label="Token ID"
+              labelClassName="text-neutral-300" // Custom class for the label
               type="text"
               name="tokenId"
               value={formData.tokenId}
@@ -80,8 +81,9 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
 
 
             <InputField
-              icon={<Coins className="text-[rgb(10,242,173)]" size={20} />}
+              icon={<Coins className="text-greenish-500" size={20} />}
               label="Amount"
+               labelClassName="text-neutral-300"
               type="number"
               name="amount"
               value={formData.amount}
@@ -92,8 +94,9 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
 
 
             <InputField
-              icon={<Calendar className="text-[rgb(10,242,173)]" size={20} />}
+              icon={<Calendar className="text-greenish-500" size={20} />}
               label="Lock Duration (days)"
+               labelClassName="text-neutral-300"
               type="number"
               name="duration"
               value={formData.duration}
@@ -105,7 +108,7 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
 
             <button
               type="submit"
-              className="w-full bg-[rgb(10,242,173)] text-white py-2 rounded-md hover:bg-[#1c2432] transition-colors grid place-items-center"
+              className="w-full bg-greenish-500 text-white py-2 rounded-md hover:bg-[#1c2432] transition-colors grid place-items-center"
             >
               <div className="inline-flex items-center gap-2 opacity-">
                 <Lock size={20} />
@@ -117,20 +120,20 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
 
 
         {/* Current Locks Section */}
-        <div className="bg-[#1c2432] rounded-xl p-4 space-y-3">
-          <h3 className="text-[#c6d1de] font-medium mb-2">Current Locks</h3>
+        <div className="bg-opacityLight-5 border border-opacityLight-10 rounded-xl p-4 space-y-3">
+          <h3 className="text-neutral-100 font-medium mb-2">Current Locks</h3>
           {currentLocks.map((lock) => (
             <div
               key={lock.tokenId}
               className="bg-[rgb(11,13,19)] rounded-lg p-3 flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
-                <Lock className="text-[#c6d1de]" size={20} />
+                <Lock className="text-neutral-100" size={20} />
                 <div>
-                  <p className="text-[#c6d1de]">
+                  <p className="text-neutral-100">
                     Token {lock.tokenId}: {lock.credits} credits locked for {lock.duration} days
                   </p>
-                  <p className="text-sm text-[#8896aa]">({lock.status})</p>
+                  <p className="text-sm text-neutral-300">({lock.status})</p>
                 </div>
               </div>
             </div>
@@ -157,7 +160,7 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={confirmSubmission}
-                  className="bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2"
+                  className="bg-greenish-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors inline-flex items-center justify-center gap-2"
                 >
                   <CheckCircle size={20} />
                   Confirm
@@ -182,13 +185,15 @@ const LockForm = ({ onSubmit }: { onSubmit: (data: { tokenId: string; amount: nu
 const InputField = ({
   icon,
   label,
+  labelClassName,
   ...inputProps
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   icon: React.ReactNode,
-  label: string
+  label: string,
+  labelClassName?: string
 }) => (
   <div>
-    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+    <label className={`flex items-center gap-2 text-sm font-medium mb-2 ${labelClassName}`}>
       {icon}
       {label}
     </label>
