@@ -22,6 +22,8 @@ mod Locker {
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
+    component!(path: LockerComponent, storage: locker, event: LockerEvent);
+
 
     // ABI
     #[abi(embed_v0)]
@@ -31,6 +33,8 @@ mod Locker {
         OwnableComponent::OwnableCamelOnlyImpl<ContractState>;
     #[abi(embed_v0)]
     impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
+    #[abi(embed_v0)]
+    impl LockerImpl = LockerComponent::LockerHandlerImpl<ContractState>;
     // Access Control
     #[abi(embed_v0)]
     impl AccessControlImpl =
@@ -64,7 +68,9 @@ mod Locker {
         #[flat]
         SRC5Event: SRC5Component::Event,
         #[flat]
-        AccessControlEvent: AccessControlComponent::Event
+        AccessControlEvent: AccessControlComponent::Event,
+        #[flat]
+        LockerEvent: LockerComponent::Event,
     }
 
     #[constructor]

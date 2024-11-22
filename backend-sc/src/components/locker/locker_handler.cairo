@@ -91,8 +91,8 @@ mod LockerComponent {
         /// Retrieves the details of locked credits for a user.
         fn get_locked_credits(
             self: @ComponentState<TContractState>, user: ContractAddress, token_id: u256
-        ) -> (u256, u256) {
-            return (0, 0);
+        ) -> u256 {
+            return 0;
         }
 
         /// Allows the user to withdraw credits before the lock period ends with a penalty.

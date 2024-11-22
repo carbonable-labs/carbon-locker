@@ -14,7 +14,7 @@ trait ILockerHandler<TContractState> {
     /// Retrieves the details of locked credits for a user.
     fn get_locked_credits(
         self: @TContractState, user: ContractAddress, token_id: u256
-    ) -> (u256, u256);
+    ) -> u256;
 
     /// Allows the user to withdraw credits before the lock period ends with a penalty.
     fn early_withdraw(ref self: TContractState, token_id: u256);
