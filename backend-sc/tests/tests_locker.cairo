@@ -23,6 +23,8 @@ use carbon_locker::components::locker::interface::{
     ILockerHandlerDispatcher, ILockerHandlerDispatcherTrait, ILockerHandler
 };
 
+use carbon_locker::components::locker::locker_handler::LockerComponent;
+
 // Contracts
 use carbon_locker::contracts::locker::Locker;
 
@@ -67,6 +69,7 @@ fn test_locker_offsetter() {
 
     let locker_address = deploy_locker();
     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+    let mut spy = spy_events();
     start_cheat_caller_address(locker_address, admin_address);
 
     let zero_address = locker.get_offsetter_address();
@@ -74,6 +77,19 @@ fn test_locker_offsetter() {
     assert(zero_address_felt == 0, 'Offset address should be 0');
 
     locker.set_offsetter_address(address0);
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    locker_address,
+                    LockerComponent::Event::OffsetterSet(
+                        LockerComponent::OffsetterSet { offsetter: address0 }
+                    )
+                )
+            ]
+        );
+
     let offsetter_address = locker.get_offsetter_address();
     assert(offsetter_address == address0, 'Unexpected offsetter address');
 }
@@ -90,6 +106,7 @@ fn test_locker_nft_component() {
 
     let locker_address = deploy_locker();
     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+    let mut spy = spy_events();
     start_cheat_caller_address(locker_address, admin_address);
 
     let zero_address = locker.get_nft_component_address();
@@ -97,6 +114,19 @@ fn test_locker_nft_component() {
     assert(zero_address_felt == 0, 'Offset address should be 0');
 
     locker.set_nft_component_address(address0);
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    locker_address,
+                    LockerComponent::Event::NFTComponentSet(
+                        LockerComponent::NFTComponentSet { nft_component: address0 }
+                    )
+                )
+            ]
+        );
+
     let nft_component_address = locker.get_nft_component_address();
     assert(nft_component_address == address0, 'Unexpected offsetter address');
 }
