@@ -6,7 +6,7 @@ trait ILockerHandler<TContractState> {
     fn lock_credits(ref self: TContractState, token_id: u256, amount: u256, lock_duration: u256);
 
     /// Checks if the lock period has expired for a user's locked credits.
-    fn is_lock_expired(self: @TContractState, user: ContractAddress, token_id: u256) -> bool;
+    fn is_lock_expired(self: @TContractState, lock_id: u256) -> bool;
 
     /// Initiates the offsetting of locked credits after the lock period.
     fn offset_credits(ref self: TContractState, token_id: u256);
@@ -22,6 +22,12 @@ trait ILockerHandler<TContractState> {
 
     /// Sets the contract address of offsetter
     fn set_offsetter_address(ref self: TContractState, address: ContractAddress);
+    
+    /// Retrieves the contract address of offprojectsetter
+    fn get_project_address(self: @TContractState) -> ContractAddress;
+
+    /// Sets the contract address of project
+    fn set_project_address(ref self: TContractState, address: ContractAddress);
 
     /// Retrieves the contract address of the NFT component
     fn get_nft_component_address(self: @TContractState) -> ContractAddress;
