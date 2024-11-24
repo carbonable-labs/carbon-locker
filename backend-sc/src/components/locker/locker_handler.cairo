@@ -17,6 +17,9 @@ mod LockerComponent {
         IExternalDispatcher as IProjectDispatcher,
         IExternalDispatcherTrait as IProjectDispatcherTrait
     };
+    use carbon_v3::components::offsetter::interface::{
+        IOffsetHandlerDispatcher, IOffsetHandlerDispatcherTrait
+    };
     use carbon_v3::components::erc1155::interface::{IERC1155Dispatcher, IERC1155DispatcherTrait};
 
     // Roles
@@ -56,7 +59,9 @@ mod LockerComponent {
     pub enum Event {
         OffsetterSet: OffsetterSet,
         NFTComponentSet: NFTComponentSet,
-        ProjectSet: ProjectSet
+        ProjectSet: ProjectSet,
+        LockCreated: LockCreated,
+        LockOffsetted: LockOffsetted,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -74,11 +79,30 @@ mod LockerComponent {
         pub project: ContractAddress,
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct LockCreated {
+        lock_id: u256,
+        user: ContractAddress,
+        token_id: u256,
+        amount: u256,
+        start_time: u256,
+        end_time: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct LockOffsetted {
+        lock_id: u256,
+        user: ContractAddress,
+        token_id: u256,
+        amount: u256,
+    }
+
     mod Errors {
         const MISSING_ROLE: felt252 = 'Locker: Missing role';
         const VINTAGE_NOT_AUDITED: felt252 = 'Vintage status is not audited';
         const INSUFFICIENT_BALANCE: felt252 = 'Not enough carbon credits';
         const NOT_OFFSETTER: felt252 = 'Caller is not offsetter';
+        const NOT_OFFSETTABLE: felt252= 'Lock not offsettable';
     }
 
     #[embeddable_as(LockerHandlerImpl)]
@@ -146,14 +170,45 @@ mod LockerComponent {
             return current_time >= lock.end_time;
         }
 
+        /// Checks if the lock is offsettable (locking expired and not yet offsetted).
+        fn is_lock_offsettable(
+            self: @ComponentState<TContractState>, lock_id: u256
+        ) -> bool {
+            let lock = self.locks.read(lock_id);
+            let current_time: u256 = get_block_timestamp().into();
+            return current_time >= lock.end_time && !lock.is_offsetted;
+        }
+
         /// Initiates the offsetting of locked credits after the lock period.
-        fn offset_credits(ref self: ComponentState<TContractState>, token_id: u256) {}
+        fn offset_credits(ref self: ComponentState<TContractState>, lock_id: u256) {
+            // let caller_address: ContractAddress = get_caller_address();
+            let is_offsettable: bool = self.is_lock_offsettable(lock_id);
+            assert(is_offsettable,
+                Errors::NOT_OFFSETTABLE
+            );
+            let lock: Lock = self.locks.read(lock_id);
+            self._offset_credits(lock);
+        }
 
         /// Retrieves the details of locked credits for a user.
         fn get_locked_credits(
             self: @ComponentState<TContractState>, user: ContractAddress, token_id: u256
-        ) -> u256 {
-            return 0;
+        ) -> Span<u256> {
+            let total_locks = self.locker_id.read();
+            let mut user_locks: Array<u256> = Default::default();
+            let mut index = 0;
+            loop {
+                if index == total_locks {
+                    break;
+                }
+                let lock = self.locks.read(index);
+                if lock.user == user {
+                    user_locks.append(index);
+                }
+                index += 1;
+            };
+            user_locks.span()
+
         }
 
         /// Allows the user to withdraw credits before the lock period ends with a penalty.
@@ -220,6 +275,34 @@ mod LockerComponent {
             let caller = get_caller_address();
             let has_role = self.get_contract().has_role(role, caller);
             assert(has_role, Errors::MISSING_ROLE);
+        }
+
+        fn _offset_credits(ref self: ComponentState<TContractState>, lock: Lock) {
+            // Burn the credits
+            let offsetter_address: ContractAddress = self.offsetter.read();
+            let offsetter = IOffsetHandlerDispatcher { contract_address: offsetter_address };
+
+            // The LockerComponent must call the offsetter who has the OFFSETTER role
+            let token_id = lock.token_id;
+            let amount = lock.amount;
+            offsetter.retire_carbon_credits(token_id, amount);
+
+            // Update the lock to set is_offsetted = true
+            let mut updated_lock = lock;
+            updated_lock.is_offsetted = true;
+            self.locks.write(lock.id, updated_lock);
+
+            // Emit event
+            self.emit(
+                Event::LockOffsetted(
+                    LockOffsetted {
+                        lock_id: lock.id,
+                        user: lock.user,
+                        token_id: lock.token_id,
+                        amount: lock.amount,
+                    }
+                )
+            );
         }
     }
 }

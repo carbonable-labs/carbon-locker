@@ -46,15 +46,12 @@ fn deploy_locker() -> ContractAddress {
 fn test_locker_example() {
     let user_address: ContractAddress = contract_address_const::<'USER'>();
     let locker_address = deploy_locker();
-    let address_felt: felt252 = locker_address.into();
-    println!("Locker address: {}", address_felt);
 
     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
     start_cheat_caller_address(locker_address, user_address);
     let token_id: u256 = 0;
-    let locked_credits = locker.get_locked_credits(user_address, token_id);
-    println!("locked_credits: {locked_credits}");
-    assert(locked_credits == 0, 'Locked_credits should be 0');
+    let locked_credits: Span<u256> = locker.get_locked_credits(user_address, token_id);
+    assert(locked_credits == array![].span(), 'Locked_credits should be 0');
 }
 
 /// Tests the get_offsetter_address and set_offsetter_address functions

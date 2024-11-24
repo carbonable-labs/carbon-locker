@@ -8,11 +8,14 @@ trait ILockerHandler<TContractState> {
     /// Checks if the lock period has expired for a user's locked credits.
     fn is_lock_expired(self: @TContractState, lock_id: u256) -> bool;
 
+    /// Checks if the lock is offsettable.
+    fn is_lock_offsettable(self: @TContractState, lock_id: u256) -> bool;
+
     /// Initiates the offsetting of locked credits after the lock period.
-    fn offset_credits(ref self: TContractState, token_id: u256);
+    fn offset_credits(ref self: TContractState, lock_id: u256);
 
     /// Retrieves the details of locked credits for a user.
-    fn get_locked_credits(self: @TContractState, user: ContractAddress, token_id: u256) -> u256;
+    fn get_locked_credits(self: @TContractState, user: ContractAddress, token_id: u256) -> Span<u256>;
 
     /// Allows the user to withdraw credits before the lock period ends with a penalty.
     fn early_withdraw(ref self: TContractState, token_id: u256);
