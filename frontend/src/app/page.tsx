@@ -1,37 +1,25 @@
+'use client';
+
 import React from 'react';
-import Link from "next/link";
-import Image from "next/image";
+import Link from 'next/link';
+import Navbar from '@/components/NavBar';
 
 const HomePage = () => {
   return (
     <div className="min-h-screen bg-neutral-800 text-neutral-100">
       <nav className="bg-neutral-700 border-b border-opacityLight-10">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/assets/logo.svg"
-                alt="Carbon Locker Logo"
-                width={24}
-                height={24}
-                className="text-greenish-500 w-auto h-6"
-                priority
-              />
-              <span className="text-xl font-semibold">Carbon Locker</span>
-            </div>
-          </div>
+          <Navbar />
         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 py-16">
         <div className="flex flex-col items-center text-center">
           <div className="mb-16">
-            <h1 className="text-5xl font-bold mb-6">
-              Welcome to Carbon Locker
-            </h1>
+            <h1 className="text-5xl font-bold mb-6">Welcome to Carbon Locker</h1>
             <p className="text-xl text-neutral-300 max-w-2xl mx-auto mb-8">
-              Your secure platform for managing and trading carbon credits with transparency
-              and efficiency on the blockchain.
+              Your secure platform for managing and trading carbon credits with transparency and
+              efficiency on the blockchain.
             </p>
           </div>
 
@@ -39,17 +27,23 @@ const HomePage = () => {
             <div className="p-6 bg-neutral-700 rounded-lg border border-opacityLight-10">
               <div className="text-2xl mb-4">🌱</div>
               <h3 className="text-lg font-semibold mb-2">Secure Storage</h3>
-              <p className="text-neutral-300">Safely store and manage your carbon credits in our digital locker system</p>
+              <p className="text-neutral-300">
+                Safely store and manage your carbon credits in our digital locker system
+              </p>
             </div>
             <div className="p-6 bg-neutral-700 rounded-lg border border-opacityLight-10">
               <div className="text-2xl mb-4">📊</div>
               <h3 className="text-lg font-semibold mb-2">Real-time Tracking</h3>
-              <p className="text-neutral-300">Monitor your carbon credit portfolio with advanced analytics</p>
+              <p className="text-neutral-300">
+                Monitor your carbon credit portfolio with advanced analytics
+              </p>
             </div>
             <div className="p-6 bg-neutral-700 rounded-lg border border-opacityLight-10">
               <div className="text-2xl mb-4">🔄</div>
               <h3 className="text-lg font-semibold mb-2">Easy Trading</h3>
-              <p className="text-neutral-300">Seamlessly trade carbon credits on our decentralized platform</p>
+              <p className="text-neutral-300">
+                Seamlessly trade carbon credits on our decentralized platform
+              </p>
             </div>
           </div>
 
