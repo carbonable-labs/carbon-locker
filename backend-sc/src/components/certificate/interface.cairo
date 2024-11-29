@@ -1,4 +1,6 @@
 use starknet::ContractAddress;
-/// Implement NFT Certicate. Only Locker can mint, burn and update metadata.
 
-
+#[starknet::interface]
+trait INFTComponent<TContractState> {
+    fn mint(ref self: TContractState, to: ContractAddress, token_id: u256);
+}
