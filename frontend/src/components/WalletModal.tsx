@@ -19,6 +19,11 @@ const walletIcons = {
 export function WalletModal({ isOpen, setIsOpen }: WalletModalProps) {
   const { connect, connectors } = useConnect();
 
+  // Filter only Starknet wallets (Argent and Braavos)
+  const starknetConnectors = connectors.filter(
+    connector => connector.id === 'argentX' || connector.id === 'braavos'
+  );
+
   const getWalletDetails = (id: string) => {
     switch (id) {
       case 'argentX':
@@ -32,10 +37,7 @@ export function WalletModal({ isOpen, setIsOpen }: WalletModalProps) {
           icon: walletIcons.braavos,
         };
       default:
-        return {
-          name: id,
-          icon: walletIcons.braavos, // fallback icon
-        };
+        return null;
     }
   };
 
@@ -68,7 +70,7 @@ export function WalletModal({ isOpen, setIsOpen }: WalletModalProps) {
               <Dialog.Panel className="w-full max-w-md transform rounded-2xl bg-[#1c1c1c] p-6 shadow-xl transition-all">
                 <div className="flex justify-between items-center mb-6">
                   <Dialog.Title as="h3" className="text-xl font-semibold text-white">
-                    Connect a Wallet
+                    Connect Your Wallet
                   </Dialog.Title>
                   <button
                     onClick={() => setIsOpen(false)}
@@ -78,82 +80,38 @@ export function WalletModal({ isOpen, setIsOpen }: WalletModalProps) {
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-lg text-white mb-4">Popular</h4>
-                    <div className="space-y-3">
-                      {connectors.map((connector) => {
-                        const walletDetails = getWalletDetails(connector.id);
-                        return (
-                          <button
-                            key={connector.id}
-                            onClick={() => {
-                              connect({ connector });
-                              setIsOpen(false);
-                            }}
-                            className="w-full flex items-center justify-between p-4 rounded-lg
-                              bg-[#2c2c2c] hover:bg-[#3c3c3c] transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="relative w-8 h-8">
-                                <Image
-                                  src={walletDetails.icon}
-                                  alt={walletDetails.name}
-                                  width={32}
-                                  height={32}
-                                  className="rounded-md"
-                                />
-                              </div>
-                              <span className="text-white font-medium">{walletDetails.name}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-[#2c2c2c] pt-6">
-                    <h4 className="text-lg text-white mb-4">What is a wallet?</h4>
-                    <div className="space-y-4">
-                      <div className="flex gap-4">
-                        <div className="relative w-10 h-10">
+                <div className="space-y-4">
+                  {starknetConnectors.map((connector) => {
+                    const walletDetails = getWalletDetails(connector.id);
+                    if (!walletDetails) return null;
+                    
+                    return (
+                      <button
+                        key={connector.id}
+                        onClick={() => {
+                          connect({ connector });
+                          setIsOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 p-4 rounded-lg
+                          bg-[#2c2c2c] hover:bg-[#3c3c3c] transition-colors"
+                      >
+                        <div className="relative w-8 h-8">
                           <Image
-                            src="/assets/wallets/wallet-info.svg"
-                            alt="Digital Assets"
-                            width={40}
-                            height={40}
+                            src={walletDetails.icon}
+                            alt={walletDetails.name}
+                            width={32}
+                            height={32}
+                            className="rounded-md"
                           />
                         </div>
-                        <div className="flex-1">
-                          <h5 className="text-white font-medium mb-2">
-                            A home for your digital assets
-                          </h5>
-                          <p className="text-gray-400 text-sm">
-                            Wallets are used to send, receive, store, and display digital assets
-                            like Ethereum and NFTs.
-                          </p>
-                        </div>
-                      </div>
+                        <span className="text-white font-medium">{walletDetails.name}</span>
+                      </button>
+                    );
+                  })}
 
-                      <div className="flex gap-4">
-                        <div className="relative w-10 h-10">
-                          <Image
-                            src="/assets/wallets/signin-info.svg"
-                            alt="Sign In"
-                            width={40}
-                            height={40}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <h5 className="text-white font-medium mb-2">A new way to sign in</h5>
-                          <p className="text-gray-400 text-sm">
-                            Instead of creating new accounts and passwords on every website, just
-                            connect your wallet.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  {starknetConnectors.length === 0 && (
+                    <p className="text-gray-400 text-center">No Starknet wallets detected. Please install Argent X or Braavos.</p>
+                  )}
                 </div>
               </Dialog.Panel>
             </Transition.Child>
