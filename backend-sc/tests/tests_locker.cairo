@@ -29,6 +29,7 @@ use carbon_v3::contracts::project::{
 };
 
 use carbon_locker::components::locker::locker_handler::LockerComponent;
+use carbon_locker::components::locker::interface::PENALTY_SCALING_FACTOR;
 
 // Contracts
 use carbon_locker::contracts::locker::Locker;
