@@ -1,5 +1,7 @@
 use starknet::ContractAddress;
 
+const PENALTY_SCALING_FACTOR: u256 = 10000;
+
 #[derive(Copy, Drop, Debug, Hash, starknet::Store, Serde, PartialEq)]
 struct Lock {
     id: u256, // Unique ID of the lock
@@ -26,6 +28,8 @@ trait ILockerHandler<TContractState> {
     /// Initiates the offsetting of locked credits after the lock period.
     fn offset_credits(ref self: TContractState, lock_id: u256);
 
+    fn terminate_lock_with_penalty(ref self: TContractState, lock_id: u256, withdraw_amount: u256);
+
     /// Retrieves the details of a Lock.
     fn get_lock(self: @TContractState, lock_id: u256) -> Lock;
 
@@ -46,6 +50,10 @@ trait ILockerHandler<TContractState> {
 
     /// Sets the contract address of project
     fn set_project_address(ref self: TContractState, address: ContractAddress);
+
+    fn set_penalty_config(
+        ref self: TContractState, penalty_multiplier: u64, penalty_recipient: ContractAddress
+    );
 
     /// Retrieves the contract address of the NFT component
     fn get_nft_component_address(self: @TContractState) -> ContractAddress;
