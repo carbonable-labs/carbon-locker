@@ -87,16 +87,12 @@ fn get_mock_absorptions() -> Span<u256> {
 //
 
 fn deploy_project() -> ContractAddress {
-    println!("before declare");
     let contract = snf::declare("Project").expect('Declaration failed').contract_class();
     let number_of_years: u64 = 20;
     let mut calldata: Array<felt252> = array![
         contract_address_const::<'OWNER'>().into(), STARTING_YEAR.into(), number_of_years.into()
     ];
-    println!("after declare");
-
     let (contract_address, _) = contract.deploy(@calldata).expect('Project deployment failed');
-    println!("after deploy declare");
 
     contract_address
 }
@@ -118,10 +114,11 @@ fn default_setup_and_deploy() -> ContractAddress {
 }
 
 
-fn deploy_locker() -> ContractAddress {
+fn deploy_locker(project_address: ContractAddress, offsetter_address: ContractAddress) -> ContractAddress {
     let contract = snf::declare("Locker").expect('Declaration failed').contract_class();
     let mut calldata: Array<felt252> = array![
-        contract_address_const::<'CARBONABLE_PROJECT'>().into(),
+        project_address.into(),
+        offsetter_address.into(),
         contract_address_const::<'OWNER'>().into()
     ];
     let (contract_address, _) = contract.deploy(@calldata).expect('Locker deployment failed');
@@ -183,10 +180,10 @@ fn deploy_offsetter(project_address: ContractAddress) -> ContractAddress {
 
 fn deploy_all() -> (ContractAddress, ContractAddress, ContractAddress, ContractAddress, ContractAddress) {
     let project_address = default_setup_and_deploy();
-    let locker_address = deploy_locker();
+    let offsetter_address = deploy_offsetter(project_address);
+    let locker_address = deploy_locker(project_address, offsetter_address);
     let erc20_address = deploy_erc20();
     let minter_address = deploy_minter(project_address, erc20_address);
-    let offsetter_address = deploy_offsetter(project_address);
     (project_address, locker_address, erc20_address, minter_address, offsetter_address)
 }
 

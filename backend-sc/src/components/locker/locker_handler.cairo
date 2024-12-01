@@ -98,6 +98,7 @@ mod LockerComponent {
         const INSUFFICIENT_BALANCE: felt252 = 'Not enough carbon credits';
         const NOT_OFFSETTER: felt252 = 'Caller is not offsetter';
         const NOT_OFFSETTABLE: felt252 = 'Lock not offsettable';
+        const ZERO_ADDRESS: felt252 = 'Address is invalid';
     }
 
     #[embeddable_as(LockerHandlerImpl)]
@@ -212,7 +213,6 @@ mod LockerComponent {
 
         /// Retrieves the contract address of offsetter
         fn get_offsetter_address(self: @ComponentState<TContractState>) -> ContractAddress {
-            self.assert_only_role(OWNER_ROLE);
             self.offsetter.read()
         }
 
@@ -228,7 +228,6 @@ mod LockerComponent {
 
         /// Retrieves the contract address of project
         fn get_project_address(self: @ComponentState<TContractState>) -> ContractAddress {
-            self.assert_only_role(OWNER_ROLE);
             self.project.read()
         }
 
@@ -241,7 +240,6 @@ mod LockerComponent {
 
         /// Retrieves the contract address of the NFT component
         fn get_nft_component_address(self: @ComponentState<TContractState>) -> ContractAddress {
-            self.assert_only_role(OWNER_ROLE);
             self.nft_component.read()
         }
 
@@ -263,8 +261,16 @@ mod LockerComponent {
         +IAccessControl<TContractState>
     > of InternalTrait<TContractState> {
         fn initializer(
-            ref self: ComponentState<TContractState>, carbonable_project_address: ContractAddress,
-        ) {}
+            ref self: ComponentState<TContractState>,
+            carbonable_project_address: ContractAddress,
+            offsetter_address: ContractAddress,
+        ) {
+            assert(carbonable_project_address.into() != 0, Errors::ZERO_ADDRESS);
+            assert(carbonable_project_address.into() != 0, Errors::ZERO_ADDRESS);
+            assert(offsetter_address.into() != 0, Errors::ZERO_ADDRESS);
+            self.project.write(carbonable_project_address);
+            self.offsetter.write(offsetter_address);
+        }
 
         fn assert_only_role(self: @ComponentState<TContractState>, role: felt252) {
             // [Check] Caller has role
