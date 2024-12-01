@@ -114,12 +114,12 @@ fn default_setup_and_deploy() -> ContractAddress {
 }
 
 
-fn deploy_locker(project_address: ContractAddress, offsetter_address: ContractAddress) -> ContractAddress {
+fn deploy_locker(
+    project_address: ContractAddress, offsetter_address: ContractAddress
+) -> ContractAddress {
     let contract = snf::declare("Locker").expect('Declaration failed').contract_class();
     let mut calldata: Array<felt252> = array![
-        project_address.into(),
-        offsetter_address.into(),
-        contract_address_const::<'OWNER'>().into()
+        project_address.into(), offsetter_address.into(), contract_address_const::<'OWNER'>().into()
     ];
     let (contract_address, _) = contract.deploy(@calldata).expect('Locker deployment failed');
 
@@ -178,7 +178,9 @@ fn deploy_offsetter(project_address: ContractAddress) -> ContractAddress {
     contract_address
 }
 
-fn deploy_all() -> (ContractAddress, ContractAddress, ContractAddress, ContractAddress, ContractAddress) {
+fn deploy_all() -> (
+    ContractAddress, ContractAddress, ContractAddress, ContractAddress, ContractAddress
+) {
     let project_address = default_setup_and_deploy();
     let offsetter_address = deploy_offsetter(project_address);
     let locker_address = deploy_locker(project_address, offsetter_address);
