@@ -4,7 +4,6 @@ mod LockerComponent {
     use core::hash::LegacyHash;
 
     // Starknet imports
-
     use starknet::{ContractAddress, get_caller_address, get_contract_address, get_block_timestamp};
 
     use core::starknet::storage_access;
@@ -41,12 +40,13 @@ mod LockerComponent {
     #[storage]
     struct Storage {
         locks: Map<u256, Lock>, // ID => Lock struct
-        specific_video_course_uri_with_identifier: Map::<u256, Vec<felt252>>,
         user_allocs: Map::<ContractAddress, Vec<u256>>, // (User address, index) => Lock ID
         locker_id: u256,
         nft_component: ContractAddress, // NFT component address
         offsetter: ContractAddress, // Offsetter component address
         project: ContractAddress, // Project address of the carbon credits
+        penalty_multiplier: felt252, // Multiplier for penalty calculations (e.g., 0.05 for 5%)
+        penalty_recipient: ContractAddress, // Recipient address for penalties (e.g., NGO)
     }
 
     #[event]
@@ -57,6 +57,8 @@ mod LockerComponent {
         ProjectSet: ProjectSet,
         LockCreated: LockCreated,
         LockOffsetted: LockOffsetted,
+        PenaltyConfigSet: PenaltyConfigSet,
+        LockTerminatedWithPenalty: LockTerminatedWithPenalty,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -80,8 +82,8 @@ mod LockerComponent {
         user: ContractAddress,
         token_id: u256,
         amount: u256,
-        start_time: u64,
-        end_time: u64,
+        start_time: u256,
+        end_time: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -92,6 +94,21 @@ mod LockerComponent {
         amount: u256,
     }
 
+    #[derive(Drop, starknet::Event)]
+    pub struct PenaltyConfigSet {
+        pub penalty_multiplier: felt252,
+        pub penalty_recipient: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct LockTerminatedWithPenalty {
+        pub lock_id: u256,
+        pub user: ContractAddress,
+        pub withdrawn_amount: u256,
+        pub penalty_amount: u256,
+        pub recipient: ContractAddress,
+    }
+
     mod Errors {
         const MISSING_ROLE: felt252 = 'Locker: Missing role';
         const VINTAGE_NOT_AUDITED: felt252 = 'Vintage status is not audited';
@@ -99,6 +116,9 @@ mod LockerComponent {
         const NOT_OFFSETTER: felt252 = 'Caller is not offsetter';
         const NOT_OFFSETTABLE: felt252 = 'Lock not offsettable';
         const ZERO_ADDRESS: felt252 = 'Address is invalid';
+        const INVALID_WITHDRAW_AMOUNT: felt252 = 'Withdraw amount exceeds locked amount';
+        const TERMINATE_NOT_ALLOWED: felt252 = 'Terminate not allowed';
+        const INVALID_PENALTY_MULTIPLIER: felt252 = 'Invalid penalty multiplier';
     }
 
     #[embeddable_as(LockerHandlerImpl)]
@@ -113,10 +133,12 @@ mod LockerComponent {
             ref self: ComponentState<TContractState>,
             token_id: u256,
             amount: u256,
-            lock_duration: u64
+            lock_duration: u256
         ) {
             let caller_address: ContractAddress = get_caller_address();
             let project_address: ContractAddress = self.get_project_address();
+            let project_felt: felt252 = project_address.into();
+            println!("project_felt: {:?}", project_felt);
 
             // Check that the vintage has the "Audited" status
             let vintages = IVintageDispatcher { contract_address: project_address };
@@ -130,7 +152,7 @@ mod LockerComponent {
             let caller_balance = erc1155.balance_of(caller_address, token_id);
             assert(caller_balance >= amount, Errors::INSUFFICIENT_BALANCE);
 
-            // Transfer the tokens from the caller to the LockerComponent, it should approved first
+            // Transfer the tokens from the caller to the LockerComponent, it should be approved first
             let project = IProjectDispatcher { contract_address: project_address };
             project
                 .safe_transfer_from(
@@ -141,8 +163,8 @@ mod LockerComponent {
             let locker_id: u256 = self.locker_id.read();
             self.locker_id.write(locker_id + 1);
 
-            let start_time: u64 = get_block_timestamp();
-            let end_time: u64 = start_time + lock_duration;
+            let start_time: u256 = get_block_timestamp().into();
+            let end_time: u256 = start_time + lock_duration;
 
             let new_lock = Lock {
                 id: locker_id,
@@ -162,27 +184,26 @@ mod LockerComponent {
         /// Checks if the lock period has expired.
         fn is_lock_expired(self: @ComponentState<TContractState>, lock_id: u256) -> bool {
             let lock = self.locks.read(lock_id);
-            let current_time: u64 = get_block_timestamp().into();
+            let current_time: u256 = get_block_timestamp().into();
             return current_time >= lock.end_time;
         }
 
         /// Checks if the lock is offsettable (locking expired and not yet offsetted).
         fn is_lock_offsettable(self: @ComponentState<TContractState>, lock_id: u256) -> bool {
             let lock = self.locks.read(lock_id);
-            let current_time: u64 = get_block_timestamp().into();
+            let current_time: u256 = get_block_timestamp().into();
             return current_time >= lock.end_time && !lock.is_offsetted;
         }
 
         /// Initiates the offsetting of locked credits after the lock period.
         fn offset_credits(ref self: ComponentState<TContractState>, lock_id: u256) {
-            // let caller_address: ContractAddress = get_caller_address();
             let is_offsettable: bool = self.is_lock_offsettable(lock_id);
             assert(is_offsettable, Errors::NOT_OFFSETTABLE);
             let lock: Lock = self.locks.read(lock_id);
             self._offset_credits(lock);
         }
 
-        /// Returns a list of Lock of a user
+        /// Returns a list of Locks of a user
         fn get_user_locks(
             self: @ComponentState<TContractState>, user: ContractAddress
         ) -> Span<Lock> {
@@ -203,19 +224,22 @@ mod LockerComponent {
             };
             array_locks.span()
         }
+
         /// Retrieves the details of a Lock.
         fn get_lock(self: @ComponentState<TContractState>, lock_id: u256) -> Lock {
             self.locks.read(lock_id)
         }
 
         /// Allows the user to withdraw credits before the lock period ends with a penalty.
-        fn early_withdraw(ref self: ComponentState<TContractState>, token_id: u256) {}
+        fn early_withdraw(ref self: ComponentState<TContractState>, token_id: u256) {
+            // Implementation can be similar to terminate_lock_with_penalty if needed
+            // Placeholder for future functionality
+        }
 
         /// Retrieves the contract address of offsetter
         fn get_offsetter_address(self: @ComponentState<TContractState>) -> ContractAddress {
             self.offsetter.read()
         }
-
 
         /// Sets the contract address of offsetter
         fn set_offsetter_address(
@@ -251,6 +275,78 @@ mod LockerComponent {
             self.nft_component.write(address);
             self.emit(NFTComponentSet { nft_component: address });
         }
+
+        /// Terminates a lock with a penalty for early withdrawal.
+        fn terminate_lock_with_penalty(
+            ref self: ComponentState<TContractState>,
+            lock_id: u256,
+            withdraw_amount: u256
+        ) {
+            let caller_address: ContractAddress = get_caller_address();
+            let lock: Lock = self.locks.read(lock_id);
+            assert(lock.user == caller_address, Errors::TERMINATE_NOT_ALLOWED);
+            let vintages = IVintageDispatcher { contract_address: self.project.read() };
+            let stored_vintage: CarbonVintage = vintages.get_carbon_vintage(lock.token_id);
+            assert(
+                stored_vintage.status == CarbonVintageType::Audited,
+                Errors::VINTAGE_NOT_AUDITED
+            );
+            assert(withdraw_amount > 0, Errors::INVALID_WITHDRAW_AMOUNT);
+            assert(withdraw_amount <= lock.amount, Errors::INVALID_WITHDRAW_AMOUNT);
+            let current_time: u256 = get_block_timestamp().into();
+            let remaining_time: u256 = if current_time >= lock.end_time {
+                0
+            } else {
+                lock.end_time - current_time
+            };
+            let total_lock_time: u256 = lock.end_time - lock.start_time;
+            let penalty_amount: u256 = (withdraw_amount * self.penalty_multiplier.read() * remaining_time) / total_lock_time;
+
+            let net_withdraw_amount: u256 = withdraw_amount - penalty_amount;
+
+            let erc1155 = IERC1155Dispatcher { contract_address: self.project.read() };
+            erc1155.safe_transfer_from(
+                get_contract_address(),
+                caller_address,
+                lock.token_id,
+                net_withdraw_amount,
+                array![].span()
+            );
+            let offsetter = IOffsetHandlerDispatcher { contract_address: self.offsetter.read() };
+            offsetter.deposit_vintage(lock.token_id, penalty_amount);
+
+            let new_amount = lock.amount - withdraw_amount;
+            let updated_lock = Lock {
+                amount: new_amount,
+                ..lock
+            };
+            self.locks.write(lock_id, updated_lock);
+            self.emit(
+                LockTerminatedWithPenalty {
+                    lock_id: lock_id,
+                    user: caller_address,
+                    withdrawn_amount: net_withdraw_amount,
+                    penalty_amount: penalty_amount,
+                    recipient: self.penalty_recipient.read(),
+                }
+            );
+        }
+        fn set_penalty_config(
+            ref self: ComponentState<TContractState>,
+            penalty_multiplier: felt252,
+            penalty_recipient: ContractAddress
+        ) {
+            self.assert_only_role(OWNER_ROLE);
+            assert(penalty_multiplier <= 1, Errors::INVALID_PENALTY_MULTIPLIER);
+            assert(penalty_recipient.into() != 0, Errors::ZERO_ADDRESS);
+
+            self.penalty_multiplier.write(penalty_multiplier);
+            self.penalty_recipient.write(penalty_recipient);
+            self.emit(PenaltyConfigSet {
+                penalty_multiplier: penalty_multiplier,
+                penalty_recipient: penalty_recipient,
+            });
+        }
     }
 
     #[generate_trait]
@@ -266,10 +362,13 @@ mod LockerComponent {
             offsetter_address: ContractAddress,
         ) {
             assert(carbonable_project_address.into() != 0, Errors::ZERO_ADDRESS);
-            assert(carbonable_project_address.into() != 0, Errors::ZERO_ADDRESS);
             assert(offsetter_address.into() != 0, Errors::ZERO_ADDRESS);
             self.project.write(carbonable_project_address);
             self.offsetter.write(offsetter_address);
+            self.penalty_multiplier.write(0.05); // 5% penalty by default
+            self.penalty_recipient.write(
+                0x0000000000000000000000000000000000000000.try_into().unwrap() //  todo
+            );
         }
 
         fn assert_only_role(self: @ComponentState<TContractState>, role: felt252) {
