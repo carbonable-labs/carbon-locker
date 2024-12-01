@@ -1,7 +1,7 @@
 use starknet::ContractAddress;
 
 #[starknet::contract]
-mod Certificate {
+mod NFTCertificate {
     use starknet::ContractAddress;
 
     use carbon_locker::components::certificate::certificate::NFTComponent;
@@ -15,11 +15,10 @@ mod Certificate {
 
     #[abi(embed_v0)]
     impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
-    impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
 
     #[abi(embed_v0)]
-    impl CounterImpl = NFTComponent::NFTComponentImpl<ContractState>;
+    impl NFTComponentImpl = NFTComponent::NFTComponentImpl<ContractState>;
 
     #[storage]
     struct Storage {
@@ -44,11 +43,6 @@ mod Certificate {
 
     #[constructor]
     fn constructor(ref self: ContractState) {
-        let name = "Certificate";
-        let symbol = "CERT";
-        let base_uri = "";
-        
-        self.erc721.initializer(name, symbol, base_uri);
+        self.initializer("Certificate", "CERT", "");
     }
 }
-
