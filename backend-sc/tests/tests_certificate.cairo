@@ -56,3 +56,16 @@ fn test_mint_function() {
     let mut balance = erc721.balance_of(user_address);
     assert(balance == 1, 'Balance should be 1');
 }
+
+#[test]
+fn test_burn_function() {
+    let certificate_address = deploy_nft_certificate();
+    let certificate = INFTComponentDispatcher { contract_address: certificate_address };
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let erc721 = IERC721Dispatcher { contract_address: certificate_address };
+
+    certificate.mint(user_address, 1);
+    certificate.burn(1);
+    let mut balance = erc721.balance_of(user_address);
+    assert(balance == 0, 'Balance should be 0');
+}

@@ -22,7 +22,7 @@ mod NFTComponent {
         +SRC5Component::HasComponent<TContractState>,
         impl ERC721: ERC721Component::HasComponent<TContractState>,
         > of INFTComponent<ComponentState<TContractState>> {
-
+            // internal
             fn initializer(
                 ref self: ComponentState<TContractState>,
                 name: ByteArray,
@@ -36,6 +36,11 @@ mod NFTComponent {
             fn mint(ref self: ComponentState<TContractState>, to: ContractAddress, token_id: u256) {
                 let mut erc721 = get_dep_component_mut!(ref self, ERC721);
                 erc721._mint(to, token_id);
+            }
+
+            fn burn(ref self: ComponentState<TContractState>, token_id: u256) {
+                let mut erc721 = get_dep_component_mut!(ref self, ERC721);
+                erc721._burn(token_id);
             }
         }
 }
