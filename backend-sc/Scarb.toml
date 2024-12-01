@@ -5,7 +5,7 @@ version = "0.1.0"
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
 
 [dependencies]
-starknet = ">=2.8.4"
+starknet = ">=2.8.5"
 openzeppelin = '0.19'
 carbon_v3 = { git = "https://github.com/carbonable-labs/carbon-protocol-v3.git" }
 
@@ -17,5 +17,7 @@ assert_macros = "2.8.4"
 test = "snforge test"
 
 [[target.starknet-contract]]
-sierra = true
-casm = true
+build-external-contracts = [
+    "carbon_v3::contracts*",
+    "carbon_v3::mock::usdcarb*"
+]
