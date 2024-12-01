@@ -7,8 +7,15 @@ mod LockerComponent {
 
     use starknet::{ContractAddress, get_caller_address, get_contract_address, get_block_timestamp};
 
+    use core::starknet::storage_access;
+    use core::array::ArrayTrait;
+    use starknet::storage::{
+        Map, Vec, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry, VecTrait,
+        MutableVecTrait
+    };
+
     // Internal imports
-    use carbon_locker::components::locker::interface::ILockerHandler;
+    use carbon_locker::components::locker::interface::{ILockerHandler, Lock};
 
     // External imports
     use carbon_v3::components::vintage::interface::{IVintageDispatcher, IVintageDispatcherTrait};
@@ -31,23 +38,11 @@ mod LockerComponent {
     // Constants
     use carbon_v3::contracts::project::Project::OWNER_ROLE;
 
-    #[derive(Copy, Drop, Debug, Hash, starknet::Store, Serde, PartialEq)]
-    struct Lock {
-        id: u256, // Unique ID of the lock
-        user: ContractAddress,
-        token_id: u256, // token_id locked, related to vintage
-        amount: u256,
-        start_time: u256,
-        end_time: u256,
-        offsettable: bool,
-        is_offsetted: bool
-    }
-
     #[storage]
     struct Storage {
-        locks: LegacyMap<u256, Lock>, // ID => Lock struct
-        // user_locks: LegacyMap<(ContractAddress, u256), u256>, // (User address, index) => Lock ID
-        // user_lock_counts: LegacyMap<ContractAddress, u256>, // User address => Number of locks
+        locks: Map<u256, Lock>, // ID => Lock struct
+        specific_video_course_uri_with_identifier: Map::<u256, Vec<felt252>>,
+        user_allocs: Map::<ContractAddress, Vec<u256>>, // (User address, index) => Lock ID
         locker_id: u256,
         nft_component: ContractAddress, // NFT component address
         offsetter: ContractAddress, // Offsetter component address
@@ -102,7 +97,7 @@ mod LockerComponent {
         const VINTAGE_NOT_AUDITED: felt252 = 'Vintage status is not audited';
         const INSUFFICIENT_BALANCE: felt252 = 'Not enough carbon credits';
         const NOT_OFFSETTER: felt252 = 'Caller is not offsetter';
-        const NOT_OFFSETTABLE: felt252= 'Lock not offsettable';
+        const NOT_OFFSETTABLE: felt252 = 'Lock not offsettable';
     }
 
     #[embeddable_as(LockerHandlerImpl)]
@@ -126,8 +121,7 @@ mod LockerComponent {
             let vintages = IVintageDispatcher { contract_address: project_address };
             let stored_vintage: CarbonVintage = vintages.get_carbon_vintage(token_id);
             assert(
-                stored_vintage.status == CarbonVintageType::Audited,
-                Errors::VINTAGE_NOT_AUDITED
+                stored_vintage.status == CarbonVintageType::Audited, Errors::VINTAGE_NOT_AUDITED
             );
 
             // Check the user's balance
@@ -137,9 +131,10 @@ mod LockerComponent {
 
             // Transfer the tokens from the caller to the LockerComponent, it should approved first
             let project = IProjectDispatcher { contract_address: project_address };
-            project.safe_transfer_from(
-                caller_address, get_contract_address(), token_id, amount, array![].span()
-            );
+            project
+                .safe_transfer_from(
+                    caller_address, get_contract_address(), token_id, amount, array![].span()
+                );
 
             // Create a new lock
             let locker_id: u256 = self.locker_id.read();
@@ -159,21 +154,19 @@ mod LockerComponent {
                 is_offsetted: false,
             };
             self.locks.write(locker_id, new_lock);
+            let current_user_locks = self.user_allocs.entry(caller_address);
+            current_user_locks.append().write(locker_id);
         }
 
         /// Checks if the lock period has expired.
-        fn is_lock_expired(
-            self: @ComponentState<TContractState>, lock_id: u256
-        ) -> bool {
+        fn is_lock_expired(self: @ComponentState<TContractState>, lock_id: u256) -> bool {
             let lock = self.locks.read(lock_id);
             let current_time: u256 = get_block_timestamp().into();
             return current_time >= lock.end_time;
         }
 
         /// Checks if the lock is offsettable (locking expired and not yet offsetted).
-        fn is_lock_offsettable(
-            self: @ComponentState<TContractState>, lock_id: u256
-        ) -> bool {
+        fn is_lock_offsettable(self: @ComponentState<TContractState>, lock_id: u256) -> bool {
             let lock = self.locks.read(lock_id);
             let current_time: u256 = get_block_timestamp().into();
             return current_time >= lock.end_time && !lock.is_offsetted;
@@ -183,32 +176,35 @@ mod LockerComponent {
         fn offset_credits(ref self: ComponentState<TContractState>, lock_id: u256) {
             // let caller_address: ContractAddress = get_caller_address();
             let is_offsettable: bool = self.is_lock_offsettable(lock_id);
-            assert(is_offsettable,
-                Errors::NOT_OFFSETTABLE
-            );
+            assert(is_offsettable, Errors::NOT_OFFSETTABLE);
             let lock: Lock = self.locks.read(lock_id);
             self._offset_credits(lock);
         }
 
-        /// Retrieves the details of locked credits for a user.
-        fn get_locked_credits(
-            self: @ComponentState<TContractState>, user: ContractAddress, token_id: u256
-        ) -> Span<u256> {
-            let total_locks = self.locker_id.read();
-            let mut user_locks: Array<u256> = Default::default();
-            let mut index = 0;
+        /// Returns a list of Lock of a user
+        fn get_user_locks(
+            self: @ComponentState<TContractState>, user: ContractAddress
+        ) -> Span<Lock> {
+            let current_user_locks = self.user_allocs.entry(user);
+            let mut array_locks: Array<Lock> = array![];
+            let len = current_user_locks.len();
+            let mut i: u64 = 0;
             loop {
-                if index == total_locks {
+                if i >= len {
                     break;
                 }
-                let lock = self.locks.read(index);
-                if lock.user == user {
-                    user_locks.append(index);
+                if let Option::Some(element) = current_user_locks.get(i) {
+                    let index = element.read();
+                    let lock: Lock = self.locks.read(index);
+                    array_locks.append(lock);
                 }
-                index += 1;
+                i += 1;
             };
-            user_locks.span()
-
+            array_locks.span()
+        }
+        /// Retrieves the details of a Lock.
+        fn get_lock(self: @ComponentState<TContractState>, lock_id: u256) -> Lock {
+            self.locks.read(lock_id)
         }
 
         /// Allows the user to withdraw credits before the lock period ends with a penalty.
@@ -293,16 +289,17 @@ mod LockerComponent {
             self.locks.write(lock.id, updated_lock);
 
             // Emit event
-            self.emit(
-                Event::LockOffsetted(
-                    LockOffsetted {
-                        lock_id: lock.id,
-                        user: lock.user,
-                        token_id: lock.token_id,
-                        amount: lock.amount,
-                    }
-                )
-            );
+            self
+                .emit(
+                    Event::LockOffsetted(
+                        LockOffsetted {
+                            lock_id: lock.id,
+                            user: lock.user,
+                            token_id: lock.token_id,
+                            amount: lock.amount,
+                        }
+                    )
+                );
         }
     }
 }

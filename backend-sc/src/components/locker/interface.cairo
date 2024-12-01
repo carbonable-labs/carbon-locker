@@ -1,5 +1,17 @@
 use starknet::ContractAddress;
 
+#[derive(Copy, Drop, Debug, Hash, starknet::Store, Serde, PartialEq)]
+struct Lock {
+    id: u256, // Unique ID of the lock
+    user: ContractAddress,
+    token_id: u256, // token_id locked, related to vintage
+    amount: u256,
+    start_time: u256,
+    end_time: u256,
+    offsettable: bool,
+    is_offsetted: bool
+}
+
 #[starknet::interface]
 trait ILockerHandler<TContractState> {
     /// Locks a specified amount of carbon credits for a given period.
@@ -14,8 +26,11 @@ trait ILockerHandler<TContractState> {
     /// Initiates the offsetting of locked credits after the lock period.
     fn offset_credits(ref self: TContractState, lock_id: u256);
 
+    /// Retrieves the details of a Lock.
+    fn get_lock(self: @TContractState, lock_id: u256) -> Lock;
+
     /// Retrieves the details of locked credits for a user.
-    fn get_locked_credits(self: @TContractState, user: ContractAddress, token_id: u256) -> Span<u256>;
+    fn get_user_locks(self: @TContractState, user: ContractAddress) -> Span<Lock>;
 
     /// Allows the user to withdraw credits before the lock period ends with a penalty.
     fn early_withdraw(ref self: TContractState, token_id: u256);
@@ -25,7 +40,7 @@ trait ILockerHandler<TContractState> {
 
     /// Sets the contract address of offsetter
     fn set_offsetter_address(ref self: TContractState, address: ContractAddress);
-    
+
     /// Retrieves the contract address of offprojectsetter
     fn get_project_address(self: @TContractState) -> ContractAddress;
 
