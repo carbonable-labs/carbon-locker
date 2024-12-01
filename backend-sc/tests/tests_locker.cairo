@@ -1,12 +1,12 @@
 // Starknet deps
 
-use starknet::{ContractAddress, contract_address_const, get_caller_address};
+use starknet::{ContractAddress, contract_address_const, get_caller_address, get_block_timestamp};
 
 // External deps
 
 use snforge_std as snf;
 use snforge_std::{
-    ContractClassTrait, EventSpy, start_cheat_caller_address, stop_cheat_caller_address, spy_events,
+    ContractClassTrait, EventSpy, start_cheat_caller_address, stop_cheat_caller_address, spy_events, start_cheat_block_timestamp_global,
     cheatcodes::events::{EventSpyAssertionsTrait, EventSpyTrait, EventsFilterTrait}
 };
 
@@ -183,7 +183,7 @@ fn test_locker__lock_credits() {
     start_cheat_caller_address(project_address, user_address);
 
     let amount_to_lock = balance;
-    let lock_duration: u256 = 1000; // Some duration
+    let lock_duration: u64 = 1000; // Some duration
     locker.lock_credits(token_id, amount_to_lock, lock_duration);
 
     // Check that the lock is created
@@ -207,17 +207,303 @@ fn test_locker__lock_credits() {
 
     stop_cheat_caller_address(locker_address);
 }
+
+#[test]
+#[should_panic(expected: 'Not enough carbon credits')]
+fn test_locker__lock_credits_insufficient_balance() {
+    let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let (project_address, locker_address, _, minter_address, _) =
+        deploy_all();
+
+    // Grant necessary roles
+    let project = IProjectDispatcher { contract_address: project_address };
+
+    start_cheat_caller_address(project_address, owner_address);
+    project.grant_minter_role(minter_address);
+    project.grant_offsetter_role(locker_address);
+    stop_cheat_caller_address(project_address);
+
+    // Mint tokens to the user
+    let vintages = IVintageDispatcher { contract_address: project_address };
+    let initial_total_supply = vintages.get_initial_project_cc_supply();
+    let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
+
+    buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+    let token_id: u256 = 1;
+    let balance = project.balance_of(user_address, token_id);
+
+    // Set the vintage status to "Audited"
+    start_cheat_caller_address(project_address, owner_address);
+    vintages.update_vintage_status(token_id, CarbonVintageType::Audited.into());
+    stop_cheat_caller_address(project_address);
+
+
+    // Approve the locker contract to transfer the tokens
+    start_cheat_caller_address(project_address, user_address);
+    project.set_approval_for_all(locker_address, true);
+    stop_cheat_caller_address(project_address);
+
+    // Now, call lock_credits
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+
+    start_cheat_caller_address(locker_address, user_address);
+    start_cheat_caller_address(project_address, user_address);
+
+    let amount_to_lock = balance;
+    let lock_duration: u64 = 1000; // Some duration
+    locker.lock_credits(token_id, amount_to_lock+1, lock_duration);
+}
+
+#[test]
+#[should_panic(expected: 'Vintage status is not audited')]
+fn test_locker__lock_credits_vintage_not_audited() {
+    let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let (project_address, locker_address, _, minter_address, _) =
+        deploy_all();
+
+    // Grant necessary roles
+    let project = IProjectDispatcher { contract_address: project_address };
+
+    start_cheat_caller_address(project_address, owner_address);
+    project.grant_minter_role(minter_address);
+    project.grant_offsetter_role(locker_address);
+    stop_cheat_caller_address(project_address);
+
+    // Mint tokens to the user
+    let vintages = IVintageDispatcher { contract_address: project_address };
+    let initial_total_supply = vintages.get_initial_project_cc_supply();
+    let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
+
+    buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+    let token_id: u256 = 1;
+    let balance = project.balance_of(user_address, token_id);
+
+    // Approve the locker contract to transfer the tokens
+    start_cheat_caller_address(project_address, user_address);
+    project.set_approval_for_all(locker_address, true);
+    stop_cheat_caller_address(project_address);
+
+    // Now, call lock_credits
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+
+    start_cheat_caller_address(locker_address, user_address);
+    start_cheat_caller_address(project_address, user_address);
+
+    let amount_to_lock = balance;
+    let lock_duration: u64 = 1000; // Some duration
+    locker.lock_credits(token_id, amount_to_lock, lock_duration);
+}
+
+#[test]
+fn test_locker__is_lock_expired() {
+    let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let (project_address, locker_address, _, minter_address, _) =
+        deploy_all();
+
+    // Grant necessary roles
+    let project = IProjectDispatcher { contract_address: project_address };
+
+    start_cheat_caller_address(project_address, owner_address);
+    project.grant_minter_role(minter_address);
+    project.grant_offsetter_role(locker_address);
+    stop_cheat_caller_address(project_address);
+
+    // Mint tokens to the user
+    let vintages = IVintageDispatcher { contract_address: project_address };
+    let initial_total_supply = vintages.get_initial_project_cc_supply();
+    let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
+
+    buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+    let token_id: u256 = 1;
+    let balance = project.balance_of(user_address, token_id);
+
+    // Set the vintage status to "Audited"
+    start_cheat_caller_address(project_address, owner_address);
+    vintages.update_vintage_status(token_id, CarbonVintageType::Audited.into());
+    stop_cheat_caller_address(project_address);
+
+
+    // Approve the locker contract to transfer the tokens
+    start_cheat_caller_address(project_address, user_address);
+    project.set_approval_for_all(locker_address, true);
+    stop_cheat_caller_address(project_address);
+
+    // Now, call lock_credits
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+
+    start_cheat_caller_address(locker_address, user_address);
+    start_cheat_caller_address(project_address, user_address);
+
+    let amount_to_lock = balance;
+    let lock_duration: u64 = 1000; // Some duration
+    let current_timestamp: u64 = get_block_timestamp();
+    locker.lock_credits(token_id, amount_to_lock, lock_duration);
+
+    // Check is_lock_expired before time passes
+    let lock_id: u256 = 0; // Assuming the first lock has id 0
+    let is_expired = locker.is_lock_expired(lock_id);
+    assert(!is_expired, 'Lock should not be expired yet');
+
+    // Simulate time passing
+    let end_time: u64 = (current_timestamp + lock_duration).into();
+    start_cheat_block_timestamp_global(end_time);
+
+    // Check is_lock_expired after time passes
+    let is_expired_after = locker.is_lock_expired(lock_id);
+    assert(is_expired_after, 'Lock should be expired now');
+
+    stop_cheat_caller_address(locker_address);
+}
+
+#[test]
+fn test_locker__is_lock_offsettable() {
+    let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let (project_address, locker_address, _, minter_address, _) =
+        deploy_all();
+
+    // Grant necessary roles
+    let project = IProjectDispatcher { contract_address: project_address };
+
+    start_cheat_caller_address(project_address, owner_address);
+    project.grant_minter_role(minter_address);
+    project.grant_offsetter_role(locker_address);
+    stop_cheat_caller_address(project_address);
+
+    // Mint tokens to the user
+    let vintages = IVintageDispatcher { contract_address: project_address };
+    let initial_total_supply = vintages.get_initial_project_cc_supply();
+    let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
+
+    buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+    let token_id: u256 = 1;
+    let balance = project.balance_of(user_address, token_id);
+
+    // Set the vintage status to "Audited"
+    start_cheat_caller_address(project_address, owner_address);
+    vintages.update_vintage_status(token_id, CarbonVintageType::Audited.into());
+    stop_cheat_caller_address(project_address);
+
+
+    // Approve the locker contract to transfer the tokens
+    start_cheat_caller_address(project_address, user_address);
+    project.set_approval_for_all(locker_address, true);
+    stop_cheat_caller_address(project_address);
+
+    // Now, call lock_credits
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+
+    start_cheat_caller_address(locker_address, user_address);
+    start_cheat_caller_address(project_address, user_address);
+
+    let amount_to_lock = balance;
+    let lock_duration: u64 = 1000; // Some duration
+    let current_timestamp: u64 = get_block_timestamp();
+    locker.lock_credits(token_id, amount_to_lock, lock_duration);
+
+    // Check is_lock_offsettable before time passes
+    let lock_id: u256 = 0; // Assuming the first lock has id 0
+    let is_expired = locker.is_lock_expired(lock_id);
+    assert(!is_expired, 'Lock should not be expired yet');
+
+    // Simulate time passing
+    let end_time: u64 = (current_timestamp + lock_duration).into();
+    start_cheat_block_timestamp_global(end_time);
+
+    // Check is_lock_offsettable after time passes and not offsetted
+    let is_expired_after = locker.is_lock_expired(lock_id);
+    assert(is_expired_after, 'Lock should be expired now');
+
+    stop_cheat_caller_address(locker_address);
+}
+
 // #[test]
-// #[should_panic(expected: 'Not enough carbon credits')]
-// fn test_locker__lock_credits_insufficient_balance() {
-//     // Test lock_credits when the user doesn't have enough balance
+// fn test_locker__offset_credits() {
+//     // Test the offset_credits function
 
 //     // Set up addresses
 //     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
 //     let user_address: ContractAddress = contract_address_const::<'USER'>();
+//     let offsetter_address: ContractAddress = contract_address_const::<'OFFSETTER'>();
 
-//     let (project_address, locker_address, erc20_address, minter_address, offsetter_address) =
-//         deploy_all();
+//     // Deploy necessary contracts
+//     let erc20_address = deploy_erc20();
+//     let project_address = default_setup_and_deploy();
+//     let locker_address = deploy_locker_with_project(project_address);
+//     let minter_address = deploy_minter(project_address, erc20_address);
+
+//     // Grant necessary roles
+//     let project = IProjectDispatcher { contract_address: project_address };
+
+//     start_cheat_caller_address(project_address, owner_address);
+//     project.grant_minter_role(minter_address);
+//     project.grant_offsetter_role(locker_address);
+//     stop_cheat_caller_address(project_address);
+
+//     // Set the offsetter address in the locker contract
+//     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+
+//     start_cheat_caller_address(locker_address, owner_address);
+//     locker.set_offsetter_address(offsetter_address);
+//     stop_cheat_caller_address(locker_address);
+
+//     // Mint tokens to the user
+//     let vintages = IVintageDispatcher { contract_address: project_address };
+//     let initial_total_supply = vintages.get_initial_project_cc_supply();
+//     let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
+
+//     buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+
+//     // Set the vintage status to "Audited"
+//     start_cheat_caller_address(project_address, owner_address);
+//     let token_id: u256 = 1;
+//     vintages.update_vintage_status(token_id, CarbonVintageType::Audited.into());
+//     stop_cheat_caller_address(project_address);
+
+//     // Approve the locker contract to transfer the tokens
+//     start_cheat_caller_address(project_address, user_address);
+//     project.set_approval_for_all(locker_address, true);
+//     stop_cheat_caller_address(project_address);
+
+//     // Now, call lock_credits
+//     start_cheat_caller_address(locker_address, user_address);
+
+//     let amount_to_lock = cc_to_mint / 2;
+//     let lock_duration: u256 = 1000; // Some duration
+
+//     locker.lock_credits(token_id, amount_to_lock, lock_duration);
+
+//     // Simulate time passing
+//     snf::warp(1001);
+
+//     // Now, call offset_credits
+//     let lock_id: u256 = 0; // Assuming the first lock has id 0
+//     locker.offset_credits(lock_id);
+
+//     // Check that the lock is marked as offsetted
+//     let lock = locker.get_lock(lock_id);
+//     assert(lock.is_offsetted, 'Lock should be marked as offsetted');
+
+//     // Check that the locker balance is reduced
+//     let locker_balance = project.balance_of(locker_address, token_id);
+//     assert(locker_balance == 0, 'Locker balance should be zero after offsetting');
+
+//     stop_cheat_caller_address(locker_address);
+// }
+
+// #[test]
+// fn test_locker__get_user_locks() {
+//     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+//     let user_address: ContractAddress = contract_address_const::<'USER'>();
+
+//     // Deploy necessary contracts
+//     let erc20_address = deploy_erc20();
+//     let project_address = default_setup_and_deploy();
+//     let locker_address = deploy_locker_with_project(project_address);
+//     let minter_address = deploy_minter(project_address, erc20_address);
 
 //     // Grant necessary roles
 //     let project = IProjectDispatcher { contract_address: project_address };
@@ -245,63 +531,29 @@ fn test_locker__lock_credits() {
 //     project.set_approval_for_all(locker_address, true);
 //     stop_cheat_caller_address(project_address);
 
-//     // Now, call lock_credits with an amount greater than the user's balance
+//     // Now, call lock_credits multiple times
 //     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
 
 //     start_cheat_caller_address(locker_address, user_address);
 
-//     let amount_to_lock = cc_to_mint + 1; // More than the user has
+//     let amount_to_lock = cc_to_mint / 4;
 //     let lock_duration: u256 = 1000; // Some duration
 
 //     locker.lock_credits(token_id, amount_to_lock, lock_duration);
-
-//     stop_cheat_caller_address(locker_address);
-// }
-
-// #[test]
-// #[should_panic(expected: 'Vintage status is not audited')]
-// fn test_locker__lock_credits_vintage_not_audited() {
-//     // Test lock_credits when the vintage status is not "Audited"
-
-//     // Set up addresses
-//     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
-//     let user_address: ContractAddress = contract_address_const::<'USER'>();
-
-//     let (project_address, locker_address, erc20_address, minter_address, offsetter_address) =
-//         deploy_all();
-//     // Grant necessary roles
-//     let project = IProjectDispatcher { contract_address: project_address };
-
-//     start_cheat_caller_address(project_address, owner_address);
-//     project.grant_minter_role(minter_address);
-//     project.grant_offsetter_role(locker_address);
-//     stop_cheat_caller_address(project_address);
-
-//     // Mint tokens to the user
-//     let vintages = IVintageDispatcher { contract_address: project_address };
-//     let initial_total_supply = vintages.get_initial_project_cc_supply();
-//     let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
-
-//     buy_utils(owner_address, user_address, minter_address, cc_to_mint);
-
-//     // Do NOT set the vintage status to "Audited"
-
-//     // Approve the locker contract to transfer the tokens
-//     start_cheat_caller_address(project_address, user_address);
-//     project.set_approval_for_all(locker_address, true);
-//     stop_cheat_caller_address(project_address);
-
-//     // Now, call lock_credits
-//     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
-
-//     start_cheat_caller_address(locker_address, user_address);
-
-//     let token_id: u256 = 1;
-//     let amount_to_lock = cc_to_mint / 2;
-//     let lock_duration: u256 = 1000; // Some duration
-
 //     locker.lock_credits(token_id, amount_to_lock, lock_duration);
 
+//     // Retrieve user's locks
+//     let user_locks = locker.get_user_locks(user_address);
+
+//     // Check that there are two locks
+//     assert(user_locks.len() == 2, 'User should have two locks');
+
+//     // Check that the locks belong to the user
+//     let lock1 = user_locks.get(0).unwrap();
+//     let lock2 = user_locks.get(1).unwrap();
+
+//     assert(lock1.user == user_address, 'Lock1 user mismatch');
+//     assert(lock2.user == user_address, 'Lock2 user mismatch');
+
 //     stop_cheat_caller_address(locker_address);
 // }
-

@@ -6,8 +6,8 @@ struct Lock {
     user: ContractAddress,
     token_id: u256, // token_id locked, related to vintage
     amount: u256,
-    start_time: u256,
-    end_time: u256,
+    start_time: u64,
+    end_time: u64,
     offsettable: bool,
     is_offsetted: bool
 }
@@ -15,7 +15,7 @@ struct Lock {
 #[starknet::interface]
 trait ILockerHandler<TContractState> {
     /// Locks a specified amount of carbon credits for a given period.
-    fn lock_credits(ref self: TContractState, token_id: u256, amount: u256, lock_duration: u256);
+    fn lock_credits(ref self: TContractState, token_id: u256, amount: u256, lock_duration: u64);
 
     /// Checks if the lock period has expired for a user's locked credits.
     fn is_lock_expired(self: @TContractState, lock_id: u256) -> bool;
