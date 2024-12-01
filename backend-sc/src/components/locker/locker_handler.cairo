@@ -80,8 +80,8 @@ mod LockerComponent {
         user: ContractAddress,
         token_id: u256,
         amount: u256,
-        start_time: u256,
-        end_time: u256,
+        start_time: u64,
+        end_time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -113,7 +113,7 @@ mod LockerComponent {
             ref self: ComponentState<TContractState>,
             token_id: u256,
             amount: u256,
-            lock_duration: u256
+            lock_duration: u64
         ) {
             let caller_address: ContractAddress = get_caller_address();
             let project_address: ContractAddress = self.get_project_address();
@@ -141,8 +141,8 @@ mod LockerComponent {
             let locker_id: u256 = self.locker_id.read();
             self.locker_id.write(locker_id + 1);
 
-            let start_time: u256 = get_block_timestamp().into();
-            let end_time: u256 = start_time + lock_duration;
+            let start_time: u64 = get_block_timestamp();
+            let end_time: u64 = start_time + lock_duration;
 
             let new_lock = Lock {
                 id: locker_id,
@@ -162,14 +162,14 @@ mod LockerComponent {
         /// Checks if the lock period has expired.
         fn is_lock_expired(self: @ComponentState<TContractState>, lock_id: u256) -> bool {
             let lock = self.locks.read(lock_id);
-            let current_time: u256 = get_block_timestamp().into();
+            let current_time: u64 = get_block_timestamp().into();
             return current_time >= lock.end_time;
         }
 
         /// Checks if the lock is offsettable (locking expired and not yet offsetted).
         fn is_lock_offsettable(self: @ComponentState<TContractState>, lock_id: u256) -> bool {
             let lock = self.locks.read(lock_id);
-            let current_time: u256 = get_block_timestamp().into();
+            let current_time: u64 = get_block_timestamp().into();
             return current_time >= lock.end_time && !lock.is_offsetted;
         }
 
