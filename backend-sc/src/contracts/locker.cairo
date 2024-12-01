@@ -6,6 +6,7 @@ mod Locker {
 
     // Constants
     const OWNER_ROLE: felt252 = selector!("Owner");
+    const LOCKER_ROLE: felt252 = selector!("Locker");
 
     // Ownable
     use openzeppelin::access::ownable::OwnableComponent;
@@ -82,5 +83,7 @@ mod Locker {
         self.ownable.initializer(owner);
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(OWNER_ROLE, owner);
+        self.accesscontrol.set_role_admin(OWNER_ROLE, OWNER_ROLE);
+        self.accesscontrol.set_role_admin(LOCKER_ROLE, OWNER_ROLE);
     }
 }

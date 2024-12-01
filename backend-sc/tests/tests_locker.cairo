@@ -22,37 +22,19 @@ use carbon_v3::components::vintage::interface::{
 use carbon_locker::components::locker::interface::{
     ILockerHandlerDispatcher, ILockerHandlerDispatcherTrait, ILockerHandler
 };
+use carbon_v3::contracts::project::{
+    Project, IExternalDispatcher as IProjectDispatcher,
+    IExternalDispatcherTrait as IProjectDispatcherTrait
+};
 
 use carbon_locker::components::locker::locker_handler::LockerComponent;
 
 // Contracts
 use carbon_locker::contracts::locker::Locker;
 
+// Utils for testing purposes
 
-fn deploy_locker() -> ContractAddress {
-    let contract = snf::declare("Locker").expect('Declaration failed');
-    let mut calldata: Array<felt252> = array![
-        contract_address_const::<'CARBONABLE_PROJECT'>().into(),
-        contract_address_const::<'OWNER'>().into()
-    ];
-    let (contract_address, _) = contract.deploy(@calldata).expect('Locker deployment failed');
-
-    contract_address
-}
-
-
-/// Example of a test, shouldn't be used to test the validity of get_locked_credits
-#[test]
-fn test_locker_example() {
-    let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let locker_address = deploy_locker();
-
-    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
-    start_cheat_caller_address(locker_address, user_address);
-    let token_id: u256 = 0;
-    let locked_credits: Span<u256> = locker.get_locked_credits(user_address, token_id);
-    assert(locked_credits == array![].span(), 'Locked_credits should be 0');
-}
+use super::tests_utils::{default_setup_and_deploy, deploy_minter, deploy_locker, deploy_all, buy_utils};
 
 /// Tests the get_offsetter_address and set_offsetter_address functions
 #[test]
@@ -170,4 +152,70 @@ fn test_admin_set_nft_component_address() {
     let locker_address = deploy_locker();
     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
     locker.set_nft_component_address(address0);
+}
+
+
+#[test]
+fn test_locker__lock_credits() {
+    let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let (project_address, locker_address, erc20_address, minter_address, offsetter_address) =
+        deploy_all();
+
+    // Grant necessary roles
+    let project = IProjectDispatcher { contract_address: project_address };
+
+    start_cheat_caller_address(project_address, owner_address);
+    project.grant_minter_role(minter_address);
+    project.grant_offsetter_role(locker_address);
+    stop_cheat_caller_address(project_address);
+
+    // Mint tokens to the user
+    let vintages = IVintageDispatcher { contract_address: project_address };
+    let initial_total_supply = vintages.get_initial_project_cc_supply();
+    let cc_to_mint = initial_total_supply / 10; // 10% of the total supply
+
+    buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+
+    // Set the vintage status to "Audited"
+    start_cheat_caller_address(project_address, owner_address);
+    let token_id: u256 = 1;
+    vintages.update_vintage_status(token_id, CarbonVintageType::Audited.into());
+    stop_cheat_caller_address(project_address);
+
+    // Approve the locker contract to transfer the tokens
+    start_cheat_caller_address(project_address, user_address);
+    project.set_approval_for_all(locker_address, true);
+    stop_cheat_caller_address(project_address);
+
+    // Now, call lock_credits
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+
+    start_cheat_caller_address(locker_address, user_address);
+
+    let amount_to_lock = cc_to_mint / 2;
+    let lock_duration: u256 = 1000; // Some duration
+
+    locker.lock_credits(token_id, amount_to_lock, lock_duration);
+
+    // Check that the lock is created
+    let lock_id: u256 = 0; // Assuming the first lock has id 0
+
+    let lock = locker.get_lock(lock_id);
+
+    // Check that the lock has the expected values
+    assert(lock.id == lock_id, 'Lock ID mismatch');
+    assert(lock.user == user_address, 'Lock user mismatch');
+    assert(lock.token_id == token_id, 'Lock token_id mismatch');
+    assert(lock.amount == amount_to_lock, 'Lock amount mismatch');
+
+    // Check that the user's balance is decreased
+    let user_balance = project.balance_of(user_address, token_id);
+    assert(user_balance == cc_to_mint - amount_to_lock, 'User balance mismatch');
+
+    // Check that the locker contract's balance increased
+    let locker_balance = project.balance_of(locker_address, token_id);
+    assert(locker_balance == amount_to_lock, 'Locker balance mismatch');
+
+    stop_cheat_caller_address(locker_address);
 }

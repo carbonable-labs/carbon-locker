@@ -281,7 +281,7 @@ mod LockerComponent {
             // The LockerComponent must call the offsetter who has the OFFSETTER role
             let token_id = lock.token_id;
             let amount = lock.amount;
-            offsetter.retire_carbon_credits(token_id, amount);
+            offsetter.deposit_vintage(token_id, amount);
 
             // Update the lock to set is_offsetted = true
             let mut updated_lock = lock;
