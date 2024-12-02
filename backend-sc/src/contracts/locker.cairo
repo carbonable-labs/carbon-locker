@@ -81,6 +81,7 @@ mod Locker {
         carbonable_project_address: ContractAddress,
         offsetter_address: ContractAddress,
         owner: ContractAddress,
+        penalty_recipient: ContractAddress,
     ) {
         self.ownable.initializer(owner);
         self.accesscontrol.initializer();
