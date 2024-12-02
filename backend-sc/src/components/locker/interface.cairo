@@ -36,14 +36,17 @@ trait ILockerHandler<TContractState> {
     /// Retrieves the details of locked credits for a user.
     fn get_user_locks(self: @TContractState, user: ContractAddress) -> Span<Lock>;
 
-    /// Allows the user to withdraw credits before the lock period ends with a penalty.
-    fn early_withdraw(ref self: TContractState, token_id: u256);
-
     /// Retrieves the contract address of offsetter
     fn get_offsetter_address(self: @TContractState) -> ContractAddress;
 
     /// Sets the contract address of offsetter
     fn set_offsetter_address(ref self: TContractState, address: ContractAddress);
+
+    /// Retrieves the penalty_multiplier
+    fn get_penalty_multiplier(self: @TContractState) -> u64;
+
+    /// Retrieves the penalty_recipient
+    fn get_penalty_recipient(self: @TContractState) -> ContractAddress;
 
     /// Retrieves the contract address of offprojectsetter
     fn get_project_address(self: @TContractState) -> ContractAddress;
