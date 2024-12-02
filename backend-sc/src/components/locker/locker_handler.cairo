@@ -14,7 +14,9 @@ mod LockerComponent {
     };
 
     // Internal imports
-    use carbon_locker::components::locker::interface::{ILockerHandler, Lock, PENALTY_SCALING_FACTOR};
+    use carbon_locker::components::locker::interface::{
+        ILockerHandler, Lock, PENALTY_SCALING_FACTOR
+    };
 
     // External imports
     use carbon_v3::components::vintage::interface::{IVintageDispatcher, IVintageDispatcherTrait};
@@ -150,7 +152,8 @@ mod LockerComponent {
             let caller_balance = erc1155.balance_of(caller_address, token_id);
             assert(caller_balance >= amount, Errors::INSUFFICIENT_BALANCE);
 
-            // Transfer the tokens from the caller to the LockerComponent, it should be approved first
+            // Transfer the tokens from the caller to the LockerComponent, it should be approved
+            // first
             let project = IProjectDispatcher { contract_address: project_address };
             project
                 .safe_transfer_from(
@@ -228,12 +231,6 @@ mod LockerComponent {
             self.locks.read(lock_id)
         }
 
-        /// Allows the user to withdraw credits before the lock period ends with a penalty.
-        fn early_withdraw(ref self: ComponentState<TContractState>, token_id: u256) {
-            // Implementation can be similar to terminate_lock_with_penalty if needed
-            // Placeholder for future functionality
-        }
-
         /// Retrieves the contract address of offsetter
         fn get_offsetter_address(self: @ComponentState<TContractState>) -> ContractAddress {
             self.offsetter.read()
@@ -274,11 +271,19 @@ mod LockerComponent {
             self.emit(NFTComponentSet { nft_component: address });
         }
 
+        /// Retrieves the penalty_multiplier
+        fn get_penalty_multiplier(self: @ComponentState<TContractState>) -> u64 {
+            self.penalty_multiplier.read()
+        }
+
+        /// Retrieves the penalty_recipient
+        fn get_penalty_recipient(self: @ComponentState<TContractState>) -> ContractAddress {
+            self.penalty_recipient.read()
+        }
+
         /// Terminates a lock with a penalty for early withdrawal.
         fn terminate_lock_with_penalty(
-            ref self: ComponentState<TContractState>,
-            lock_id: u256,
-            withdraw_amount: u256
+            ref self: ComponentState<TContractState>, lock_id: u256, withdraw_amount: u256
         ) {
             let caller_address: ContractAddress = get_caller_address();
             let lock: Lock = self.locks.read(lock_id);
@@ -286,8 +291,7 @@ mod LockerComponent {
             let vintages = IVintageDispatcher { contract_address: self.project.read() };
             let stored_vintage: CarbonVintage = vintages.get_carbon_vintage(lock.token_id);
             assert(
-                stored_vintage.status == CarbonVintageType::Audited,
-                Errors::VINTAGE_NOT_AUDITED
+                stored_vintage.status == CarbonVintageType::Audited, Errors::VINTAGE_NOT_AUDITED
             );
             assert(withdraw_amount > 0, Errors::INVALID_WITHDRAW_AMOUNT);
             assert(withdraw_amount <= lock.amount, Errors::INVALID_WITHDRAW_AMOUNT);
@@ -299,37 +303,47 @@ mod LockerComponent {
             };
             let total_lock_time: u64 = lock.end_time - lock.start_time;
             let penalty_amount: u256 = withdraw_amount * self.penalty_multiplier.read().into();
-            let penalty_amount: u256 = (penalty_amount* remaining_time.into() / (total_lock_time.into() * PENALTY_SCALING_FACTOR));
+            let penalty_amount: u256 = (penalty_amount
+                * remaining_time.into()
+                / (total_lock_time.into() * PENALTY_SCALING_FACTOR));
 
-            
             let net_withdraw_amount: u256 = withdraw_amount - penalty_amount;
 
             let erc1155 = IERC1155Dispatcher { contract_address: self.project.read() };
-            erc1155.safe_transfer_from(
-                get_contract_address(),
-                caller_address,
-                lock.token_id,
-                net_withdraw_amount,
-                array![].span()
-            );
+            erc1155
+                .safe_transfer_from(
+                    get_contract_address(),
+                    caller_address,
+                    lock.token_id,
+                    net_withdraw_amount,
+                    array![].span()
+                );
+
+            erc1155
+                .safe_transfer_from(
+                    get_contract_address(),
+                    self.penalty_recipient.read(),
+                    lock.token_id,
+                    penalty_amount,
+                    array![].span()
+                );
+
             let offsetter = IOffsetHandlerDispatcher { contract_address: self.offsetter.read() };
             offsetter.deposit_vintage(lock.token_id, penalty_amount);
 
             let new_amount = lock.amount - withdraw_amount;
-            let updated_lock = Lock {
-                amount: new_amount,
-                ..lock
-            };
+            let updated_lock = Lock { amount: new_amount, ..lock };
             self.locks.write(lock_id, updated_lock);
-            self.emit(
-                LockTerminatedWithPenalty {
-                    lock_id: lock_id,
-                    user: caller_address,
-                    withdrawn_amount: net_withdraw_amount,
-                    penalty_amount: penalty_amount,
-                    recipient: self.penalty_recipient.read(),
-                }
-            );
+            self
+                .emit(
+                    LockTerminatedWithPenalty {
+                        lock_id: lock_id,
+                        user: caller_address,
+                        withdrawn_amount: net_withdraw_amount,
+                        penalty_amount: penalty_amount,
+                        recipient: self.penalty_recipient.read(),
+                    }
+                );
         }
 
         fn set_penalty_config(
@@ -339,15 +353,21 @@ mod LockerComponent {
         ) {
             self.assert_only_role(OWNER_ROLE);
             // Validate the penalty multiplier (e.g., between 0 and PENALTY_SCALING_FACTOR)
-            assert(penalty_multiplier.into() <= PENALTY_SCALING_FACTOR, Errors::INVALID_PENALTY_MULTIPLIER);
+            assert(
+                penalty_multiplier.into() <= PENALTY_SCALING_FACTOR,
+                Errors::INVALID_PENALTY_MULTIPLIER
+            );
             assert(penalty_recipient.into() != 0, Errors::ZERO_ADDRESS);
 
             self.penalty_multiplier.write(penalty_multiplier);
             self.penalty_recipient.write(penalty_recipient);
-            self.emit(PenaltyConfigSet {
-                penalty_multiplier: penalty_multiplier,
-                penalty_recipient: penalty_recipient,
-            });
+            self
+                .emit(
+                    PenaltyConfigSet {
+                        penalty_multiplier: penalty_multiplier,
+                        penalty_recipient: penalty_recipient,
+                    }
+                );
         }
     }
 
@@ -368,9 +388,10 @@ mod LockerComponent {
             self.project.write(carbonable_project_address);
             self.offsetter.write(offsetter_address);
             self.penalty_multiplier.write(500); // 5% penalty by default
-            self.penalty_recipient.write(
-                0x0000000000000000000000000000000000000000.try_into().unwrap() //  todo
-            );
+            self
+                .penalty_recipient
+                .write(0x0000000000000000000000000000000000000000.try_into().unwrap() //  todo
+                );
         }
 
         fn assert_only_role(self: @ComponentState<TContractState>, role: felt252) {

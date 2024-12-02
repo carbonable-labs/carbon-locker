@@ -119,7 +119,10 @@ fn deploy_locker(
 ) -> ContractAddress {
     let contract = snf::declare("Locker").expect('Declaration failed').contract_class();
     let mut calldata: Array<felt252> = array![
-        project_address.into(), offsetter_address.into(), contract_address_const::<'OWNER'>().into(), contract_address_const::<'NGO'>().into()
+        project_address.into(),
+        offsetter_address.into(),
+        contract_address_const::<'OWNER'>().into(),
+        contract_address_const::<'NGO'>().into()
     ];
     let (contract_address, _) = contract.deploy(@calldata).expect('Locker deployment failed');
 

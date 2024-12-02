@@ -89,6 +89,5 @@ mod Locker {
         self.locker_handler.initializer(carbonable_project_address, offsetter_address);
         self.accesscontrol.set_role_admin(OWNER_ROLE, OWNER_ROLE);
         self.accesscontrol.set_role_admin(LOCKER_ROLE, OWNER_ROLE);
-        self.locker_handler.set_penalty_config(5, penalty_recipient); // 5% penalty by default
     }
 }

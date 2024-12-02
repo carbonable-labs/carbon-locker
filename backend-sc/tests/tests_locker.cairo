@@ -544,3 +544,107 @@ fn test_locker__get_user_locks() {
     stop_cheat_caller_address(locker_address);
 }
 
+#[test]
+fn test_locker__terminate_lock_with_penalty() {
+    let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let user_address: ContractAddress = contract_address_const::<'USER'>();
+    let penalty_recipient: ContractAddress = contract_address_const::<'NGO'>();
+    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+
+    let project = IProjectDispatcher { contract_address: project_address };
+
+    start_cheat_caller_address(project_address, owner_address);
+    project.grant_minter_role(minter_address);
+    project.grant_offsetter_role(locker_address);
+    stop_cheat_caller_address(project_address);
+
+    let vintages = IVintageDispatcher { contract_address: project_address };
+    let initial_total_supply = vintages.get_initial_project_cc_supply();
+    let cc_to_mint = initial_total_supply / 10; // 10% total supply
+
+    buy_utils(owner_address, user_address, minter_address, cc_to_mint);
+    let token_id: u256 = 1;
+    let balance = project.balance_of(user_address, token_id);
+
+    start_cheat_caller_address(project_address, owner_address);
+    vintages.update_vintage_status(token_id, CarbonVintageType::Audited.into());
+    stop_cheat_caller_address(project_address);
+
+    start_cheat_caller_address(project_address, user_address);
+    project.set_approval_for_all(locker_address, true);
+    stop_cheat_caller_address(project_address);
+
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+    start_cheat_caller_address(locker_address, owner_address);
+    locker.set_penalty_config(1000, penalty_recipient); // 10.00% penalty
+    stop_cheat_caller_address(locker_address);
+
+    start_cheat_caller_address(locker_address, user_address);
+    start_cheat_caller_address(project_address, user_address);
+    let amount_to_lock = balance;
+    let lock_duration: u64 = 1000; // Some duration
+    locker.lock_credits(token_id, amount_to_lock, lock_duration);
+
+    let lock_id: u256 = 0;
+    let withdraw_amount: u256 = amount_to_lock / 2; // Withdraw 50%
+    start_cheat_caller_address(project_address, locker_address);
+    locker.terminate_lock_with_penalty(lock_id, withdraw_amount);
+
+    let updated_lock = locker.get_lock(lock_id);
+    assert(updated_lock.amount == (amount_to_lock - withdraw_amount), 'Lock amount mismatch');
+
+    // expected penalty: (withdraw_amount * penalty_multiplier * remaining_time) / (total_lock_time
+    // * PENALTY_SCALING_FACTOR)
+    // Since time hasn't passed, remaining_time = lock_duration
+    // penalty_amount = (withdraw_amount * 1000 * 1000) / (1000 * 10000) = withdraw_amount * 1000 /
+    // 10000 = withdraw_amount * 0.10
+    let expected_penalty_amount: u256 = (withdraw_amount * 1000 * 1000)
+        / (1000 * PENALTY_SCALING_FACTOR); // = withdraw_amount * 0.10
+    let expected_withdraw_amount: u256 = withdraw_amount - expected_penalty_amount;
+
+    let user_balance = project.balance_of(user_address, token_id);
+    assert(user_balance == expected_withdraw_amount, 'User balance mismatch');
+
+    let recipient_balance = project.balance_of(penalty_recipient, token_id);
+    assert(recipient_balance == expected_penalty_amount, 'Recipient balance mismatch');
+
+    stop_cheat_caller_address(locker_address);
+}
+
+
+#[test]
+fn test_locker__set_penalty_config() {
+    let (_, locker_address, _, _, _) = deploy_all();
+    let admin_address: ContractAddress = contract_address_const::<'OWNER'>();
+    let new_penalty_recipient: ContractAddress = contract_address_const::<'NEW_NGO'>();
+
+    let locker = ILockerHandlerDispatcher { contract_address: locker_address };
+    let mut spy = spy_events();
+    start_cheat_caller_address(locker_address, admin_address);
+
+    let new_penalty_multiplier: u64 = 1500; // 15.00%
+    locker.set_penalty_config(new_penalty_multiplier, new_penalty_recipient);
+
+    spy
+        .assert_emitted(
+            @array![
+                (
+                    locker_address,
+                    LockerComponent::Event::PenaltyConfigSet(
+                        LockerComponent::PenaltyConfigSet {
+                            penalty_multiplier: new_penalty_multiplier,
+                            penalty_recipient: new_penalty_recipient
+                        }
+                    )
+                )
+            ]
+        );
+
+    let stored_multiplier = locker.get_penalty_multiplier();
+    let stored_penalty_recipient = locker.get_penalty_recipient();
+
+    assert(stored_multiplier == new_penalty_multiplier, 'Penalty multiplier mismatch');
+    assert(stored_penalty_recipient == new_penalty_recipient, 'Penalty recipient mismatch');
+
+    stop_cheat_caller_address(locker_address);
+}
