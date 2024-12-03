@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 interface NFTCardProps {
   id: string;
   description: string;
@@ -5,13 +7,21 @@ interface NFTCardProps {
   lockAmount?: number;
   lockDuration?: string;
   lockStatus?: string;
+  image: string;
 }
 
-const NFTCard = ({ id, description, status, lockAmount, lockDuration, lockStatus }: NFTCardProps) => {
+const NFTCard = ({ id, description, status, lockAmount, lockDuration, lockStatus, image }: NFTCardProps) => {
   return (
     <div className="flex flex-col h-full">
       <div className="aspect-square bg-neutral-600 rounded-lg mb-4">
         {/* NFT Image placeholder */}
+        <Image
+          src={image}
+          alt={`Certificate ${id}`}
+          className="w-full h-full object-cover"
+          width={200}
+          height={400}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <h3 className="text-xl font-semibold">Certificate #{id}</h3>
