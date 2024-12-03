@@ -40,13 +40,14 @@ const Dashboard = () => {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">My Carbon Certificates</h1>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {nftsWithLocks.map((nft) => (
             <div key={nft.id} className="bg-neutral-700 rounded-lg p-6 hover:bg-neutral-600 transition-colors">
-              <NFTCard 
-                id={nft.id} 
-                description={nft.description} 
+              <NFTCard
+                id={nft.id}
+                image={nft.image}
+                description={nft.description}
                 status={nft.status}
                 lockAmount={nft.lockDetails?.amount}
                 lockDuration={nft.lockDetails?.duration}

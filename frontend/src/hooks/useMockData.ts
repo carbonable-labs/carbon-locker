@@ -6,9 +6,9 @@ const useMockData = () => {
   ];
 
   const getNFTs = () => [
-    { id: "1001", lockId: "1", description: "50 tokens locked for 30 days", status: "Active" },
-    { id: "1002", lockId: "2", description: "100 tokens locked for 60 days", status: "Archived" },
-    { id: "1003", lockId: "3", description: "100 tokens locked for 60 days", status: "Archived" },
+    { id: "1001", lockId: "1", description: "50 tokens locked for 30 days", status: "Active", image: "/250.png" },
+    { id: "1002", lockId: "2", description: "100 tokens locked for 60 days", status: "Archived", image: "/250.png" },
+    { id: "1003", lockId: "3", description: "100 tokens locked for 60 days", status: "Archived", image: "/250.png" },
   ];
 
   return { getLocks, getNFTs };
