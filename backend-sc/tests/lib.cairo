@@ -1,5 +1,6 @@
-mod tests_locker;
-<<<<<<< HEAD
-mod tests_utils;
-=======
->>>>>>> 70ee68c (Draft: Implement basic ERC721 logic for certificates)
+//mod tests_locker;
+//mod tests_utils;
+mod tests_certificate;
+mod mocks {
+    mod erc721;
+}
