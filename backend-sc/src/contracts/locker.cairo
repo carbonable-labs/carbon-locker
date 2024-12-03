@@ -6,6 +6,7 @@ mod Locker {
 
     // Constants
     const OWNER_ROLE: felt252 = selector!("Owner");
+    const LOCKER_ROLE: felt252 = selector!("Locker");
 
     // Ownable
     use openzeppelin::access::ownable::OwnableComponent;
@@ -22,7 +23,7 @@ mod Locker {
     component!(path: UpgradeableComponent, storage: upgradeable, event: UpgradeableEvent);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
-    component!(path: LockerComponent, storage: locker, event: LockerEvent);
+    component!(path: LockerComponent, storage: locker_handler, event: LockerEvent);
 
 
     // ABI
@@ -39,6 +40,7 @@ mod Locker {
     #[abi(embed_v0)]
     impl AccessControlImpl =
         AccessControlComponent::AccessControlImpl<ContractState>;
+    impl LockerInternalImpl = LockerComponent::InternalImpl<ContractState>;
     impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
     impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
     impl SRC5InternalImpl = SRC5Component::InternalImpl<ContractState>;
@@ -55,7 +57,7 @@ mod Locker {
         #[substorage(v0)]
         accesscontrol: AccessControlComponent::Storage,
         #[substorage(v0)]
-        locker: LockerComponent::Storage,
+        locker_handler: LockerComponent::Storage,
     }
 
     #[event]
@@ -77,10 +79,15 @@ mod Locker {
     fn constructor(
         ref self: ContractState,
         carbonable_project_address: ContractAddress,
+        offsetter_address: ContractAddress,
         owner: ContractAddress,
+        penalty_recipient: ContractAddress,
     ) {
         self.ownable.initializer(owner);
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(OWNER_ROLE, owner);
+        self.locker_handler.initializer(carbonable_project_address, offsetter_address, penalty_recipient);
+        self.accesscontrol.set_role_admin(OWNER_ROLE, OWNER_ROLE);
+        self.accesscontrol.set_role_admin(LOCKER_ROLE, OWNER_ROLE);
     }
 }
