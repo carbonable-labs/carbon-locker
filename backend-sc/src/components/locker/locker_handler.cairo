@@ -382,16 +382,14 @@ mod LockerComponent {
             ref self: ComponentState<TContractState>,
             carbonable_project_address: ContractAddress,
             offsetter_address: ContractAddress,
+            penalty_recipient_address: ContractAddress
         ) {
             assert(carbonable_project_address.into() != 0, Errors::ZERO_ADDRESS);
             assert(offsetter_address.into() != 0, Errors::ZERO_ADDRESS);
             self.project.write(carbonable_project_address);
             self.offsetter.write(offsetter_address);
             self.penalty_multiplier.write(500); // 5% penalty by default
-            self
-                .penalty_recipient
-                .write(0x0000000000000000000000000000000000000000.try_into().unwrap() //  todo
-                );
+            self.penalty_recipient.write(penalty_recipient_address);
         }
 
         fn assert_only_role(self: @ComponentState<TContractState>, role: felt252) {

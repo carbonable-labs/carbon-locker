@@ -86,7 +86,7 @@ mod Locker {
         self.ownable.initializer(owner);
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(OWNER_ROLE, owner);
-        self.locker_handler.initializer(carbonable_project_address, offsetter_address);
+        self.locker_handler.initializer(carbonable_project_address, offsetter_address, penalty_recipient);
         self.accesscontrol.set_role_admin(OWNER_ROLE, OWNER_ROLE);
         self.accesscontrol.set_role_admin(LOCKER_ROLE, OWNER_ROLE);
     }
