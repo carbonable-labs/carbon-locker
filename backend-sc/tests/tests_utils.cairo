@@ -181,15 +181,37 @@ fn deploy_offsetter(project_address: ContractAddress) -> ContractAddress {
     contract_address
 }
 
+fn deploy_certificate(locker_address: ContractAddress) -> ContractAddress {
+    let contract = snf::declare("MockERC721").expect('Declaration failed').contract_class();
+    let mut calldata: Array<felt252> = array![];
+    calldata.append(locker_address.into());
+
+    let (contract_address, _) = contract.deploy(@calldata).expect('Certificate deployment failed');
+    contract_address
+}
+
 fn deploy_all() -> (
-    ContractAddress, ContractAddress, ContractAddress, ContractAddress, ContractAddress
+    ContractAddress,
+    ContractAddress,
+    ContractAddress,
+    ContractAddress,
+    ContractAddress,
+    ContractAddress
 ) {
     let project_address = default_setup_and_deploy();
     let offsetter_address = deploy_offsetter(project_address);
     let locker_address = deploy_locker(project_address, offsetter_address);
     let erc20_address = deploy_erc20();
     let minter_address = deploy_minter(project_address, erc20_address);
-    (project_address, locker_address, erc20_address, minter_address, offsetter_address)
+    let certificate_address = deploy_certificate(locker_address);
+    (
+        project_address,
+        locker_address,
+        erc20_address,
+        minter_address,
+        offsetter_address,
+        certificate_address
+    )
 }
 
 // Copied from carbon_v3
