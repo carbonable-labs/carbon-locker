@@ -43,7 +43,7 @@ use super::tests_utils::{
 /// Tests the get_offsetter_address and set_offsetter_address functions
 #[test]
 fn test_locker_offsetter() {
-    let (_, locker_address, _, _, _) = deploy_all();
+    let (_, locker_address, _, _, _, _) = deploy_all();
 
     let admin_address: ContractAddress = contract_address_const::<'OWNER'>();
 
@@ -76,7 +76,7 @@ fn test_locker_offsetter() {
 /// Tests the get_nft_component_address and set_nft_component_address functions
 #[test]
 fn test_locker_nft_component() {
-    let (_, locker_address, _, _, _) = deploy_all();
+    let (_, locker_address, _, _, _, _) = deploy_all();
     let admin_address: ContractAddress = contract_address_const::<'OWNER'>();
 
     let locker = ILockerHandlerDispatcher { contract_address: locker_address };
@@ -109,7 +109,7 @@ fn test_locker_nft_component() {
 #[test]
 #[should_panic(expected: 'Locker: Missing role')]
 fn test_admin_set_offsetter_address() {
-    let (_, locker_address, _, _, _) = deploy_all();
+    let (_, locker_address, _, _, _, _) = deploy_all();
     let address0: ContractAddress =
         0x2d55d6f311413945595788818d4e89e151360a2c2c6b5270d5d0ed16475505f
         .try_into()
@@ -122,7 +122,7 @@ fn test_admin_set_offsetter_address() {
 #[test]
 #[should_panic(expected: 'Locker: Missing role')]
 fn test_admin_set_nft_component_address() {
-    let (_, locker_address, _, _, _) = deploy_all();
+    let (_, locker_address, _, _, _, _) = deploy_all();
     let address0: ContractAddress =
         0x2d55d6f311413945595788818d4e89e151360a2c2c6b5270d5d0ed16475505f
         .try_into()
@@ -136,7 +136,7 @@ fn test_admin_set_nft_component_address() {
 fn test_locker__lock_credits() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -202,7 +202,7 @@ fn test_locker__lock_credits() {
 fn test_locker__lock_credits_insufficient_balance() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -247,7 +247,7 @@ fn test_locker__lock_credits_insufficient_balance() {
 fn test_locker__lock_credits_vintage_not_audited() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -286,7 +286,7 @@ fn test_locker__lock_credits_vintage_not_audited() {
 fn test_locker__is_lock_expired() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -346,7 +346,7 @@ fn test_locker__is_lock_expired() {
 fn test_locker__is_lock_offsettable() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -406,7 +406,7 @@ fn test_locker__is_lock_offsettable() {
 fn test_locker__offset_credits() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -485,7 +485,7 @@ fn test_locker__offset_credits() {
 fn test_locker__get_user_locks() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     // Grant necessary roles
     let project = IProjectDispatcher { contract_address: project_address };
@@ -549,7 +549,7 @@ fn test_locker__terminate_lock_with_penalty() {
     let owner_address: ContractAddress = contract_address_const::<'OWNER'>();
     let user_address: ContractAddress = contract_address_const::<'USER'>();
     let penalty_recipient: ContractAddress = contract_address_const::<'NGO'>();
-    let (project_address, locker_address, _, minter_address, _) = deploy_all();
+    let (project_address, locker_address, _, minter_address, _, _) = deploy_all();
 
     let project = IProjectDispatcher { contract_address: project_address };
 
@@ -614,7 +614,7 @@ fn test_locker__terminate_lock_with_penalty() {
 
 #[test]
 fn test_locker__set_penalty_config() {
-    let (_, locker_address, _, _, _) = deploy_all();
+    let (_, locker_address, _, _, _, _) = deploy_all();
     let admin_address: ContractAddress = contract_address_const::<'OWNER'>();
     let new_penalty_recipient: ContractAddress = contract_address_const::<'NEW_NGO'>();
 
